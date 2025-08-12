@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KYEC-專利檢索系統</title>
+    
+    <!-- 外部依賴 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        // 環境配置
+        window.APP_CONFIG = {
+            API_BASE_URL: 'http://localhost:8005',
+            ENVIRONMENT: 'production',
+            VERSION: '2.0.0'
+        };
+    </script>
+
+
+    <!-- 樣式 -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="main-container">
+        <!-- 側邊欄 -->
+        <div class="sidebar">
+            <h2>系統設定</h2>
+
+            <div class="settings-section">
+                <h3>GPSS API 設定</h3>
+                <div class="form-group">
+                    <input type="password" id="gpssApiKey" placeholder="請輸入 API 驗證碼">
+                    <small style="color: #ede9e4;">⚠ 請到智慧財產局申請API驗證碼</small>
+                    <small style="color: #ede9e4;">⚠ 每人每日檢索輸出流量限制為10,000筆<br/></small>
+                    <small style="color: #ede9e4;">(此系統單次檢索輸出最多1,000筆)</small>
+                </div>
+                <button class="btn btn-secondary" id="testGpssBtn">API驗證</button>
+                <div class="status-indicator status-testing" id="gpssStatus">
+                    <span>X</span> 尚未驗證
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>專利全文查詢<br/></h3>
+                <div class="form-group">
+                    <input style="margin: 0.5em 0;" type="text" id="patentLookupInput" placeholder="輸入公開公告號">
+                    <button class="btn btn-secondary" id="patentLookupBtn">查詢專利</button>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>相關連結</h3>
+                <div class="related-links">
+                    <a href="https://tiponet.tipo.gov.tw/gpss1/gpsskmc/gpssapi?@@0.532614314057245" target="_blank">
+                        - GPSS API驗證碼申請
+                    </a>
+                    <a href="https://www.tipo.gov.tw/" target="_blank">
+                        - 智慧財產局官網
+                    </a>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>API 設定</h3>
+                <div class="form-group">
+                    <input type="text" id="apiBaseUrl" value="http://localhost:8005" placeholder="API地址">
+                </div>
+                <button class="btn btn-secondary" id="testApiBtn">測試API連接</button>
+                <div class="status-indicator status-testing" id="apiStatus">
+                    <span>…</span> 等待測試
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>服務狀態</h3>
+                <div class="status-indicator status-testing" id="qwenStatus">
+                    <span>?</span> Qwen 服務
+                </div>
+            </div>
+        </div>
+
+        <!-- 主要內容區 -->
+        <div class="main-content">
+            <div class="header">
+                <h1 style="font-weight: bold;"><B>KYEC-專利檢索系統</B></h1>
+                <p>🎃</p>
+            </div>
+
+            <!-- 分頁標籤 -->
+            <div class="tabs" id="tabContainer">
+                <button class="tab active" data-tab="tech-search">技術描述查詢</button>
+                <button class="tab" data-tab="condition-search">條件查詢</button>
+                <button class="tab" data-tab="excel-analysis">資料分析</button>
+            </div>
+
+            <!-- 技術描述查詢 -->
+            <div id="tech-search" class="tab-content active">
+                <h2>技術描述查詢</h2>
+                <div class="form-group">
+                    <label for="techDescription">請詳細描述您要查詢的技術:</label>
+                    <textarea id="techDescription" rows="6" placeholder="例如：自動化晶圓探針台系統，具備精密定位控制和多點並行測試功能，適用於高頻 RF 晶片測試..."></textarea>
+                </div>
+
+                <button class="btn btn-primary" id="generateKeywordsBtn">生成關鍵字</button>
+
+                <!-- 關鍵字選擇界面 -->
+                <div id="keyword-selection" class="keyword-selection" style="display: none;">
+                    <h3>請拖拉關鍵字到搜索條件中</h3>
+
+                    <div class="keyword-actions">
+                        <button id="clear-all-conditions-btn" class="btn btn-warning">清除全部</button>
+                        <button id="auto-generate-conditions-btn" class="btn btn-success">一鍵檢索</button>
+                        <button id="manual-search-btn" class="btn btn-primary">手動檢索</button>
+                    </div>
+    
+                    <div id="available-keywords" class="available-keywords">
+                        <!-- 動態生成可拖拉的關鍵字和同義詞 -->
+                    </div>
+
+                    <div id="search-conditions" class="search-conditions">
+                        <div class="condition-row" data-condition-index="0">
+                            <div class="keywords-dropzone" data-condition="0">
+                                <span class="dropzone-hint">拖拉關鍵字到這裡</span>
+                                <div class="dropped-keywords"></div>
+                            </div>
+                            <select class="field-selector">
+                                <option value="TI">專利名稱</option>
+                                <option value="AB">摘要</option>
+                                <option value="CL">專利範圍</option>
+                            </select>
+                            <select class="logic-selector">
+                                <option value="AND">AND</option>
+                                <option value="OR">OR</option>
+                            </select>
+                            <button class="add-condition-btn-inline">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 載入動畫 -->
+                <div id="loading-tech" class="loading">
+                    <div class="spinner"></div>
+                    <p id="loading-text">正在進行查詢，請稍候...</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                        <div class="progress-text" id="progress-text">0%</div>
+                    </div>
+                </div>
+
+                <!-- 關鍵字結果 -->
+                <div id="keywords-result" style="display: none;">
+                    <div class="card">
+                        <h3>最終使用的關鍵字</h3>
+                        <div id="final-keywords" class="keyword-tags"></div>
+                    </div>
+                </div>
+
+                <!-- 搜索結果顯示 -->
+                <div id="tech-search-results" style="display: none;">
+                    <h2>檢索結果</h2>
+                    <div class="export-section">
+                        <button class="btn btn-export" id="exportExcelBtn" style="display: none;">Excel下載</button>
+                    </div>
+                    <div id="tech-patent-list"></div>
+                </div>
+            </div>
+
+            <!-- 條件查詢 -->
+            <div id="condition-search" class="tab-content">
+                <h2>條件查詢</h2>
+                <p style="margin-bottom: 2rem; color: #666;">透過關鍵欄位直接查詢專利</p>
+
+                <div class="card">
+                    <h3>檢索條件</h3>
+                    <div class="grid grid-3">
+                        <div>
+                            <h4>基本參數</h4>
+                            <div class="form-group">
+                                <label>申請人</label>
+                                <input type="text" id="applicant" placeholder="例如：愛得萬">
+                            </div>
+                            <div class="form-group">
+                                <label>發明人</label>
+                                <input type="text" id="inventor" placeholder="例如：張三">
+                            </div>
+                            <div class="form-group">
+                                <label>公開公告號</label>
+                                <input type="text" id="patentNumber" placeholder="例如：TW202436881A">
+                            </div>
+                            <div class="form-group">
+                                <label>申請號</label>
+                                <input type="text" id="applicationNumber" placeholder="例如：TW113115234">
+                            </div>
+                        </div>
+                        <div>
+                            <h4>技術分類</h4>
+                            <div class="form-group">
+                                <label>IPC 分類</label>
+                                <input type="text" id="ipcClass" placeholder="例如：G01R">
+                            </div>
+                            <div class="form-group">
+                                <label>專利名稱關鍵字</label>
+                                <input type="text" id="titleKeyword" placeholder="例如：測試">
+                            </div>
+                            <div class="form-group">
+                                <label>摘要關鍵字</label>
+                                <input type="text" id="abstractKeyword" placeholder="例如：半導體">
+                            </div>
+                            <div class="form-group">
+                                <label>專利範圍關鍵字</label>
+                                <input type="text" id="claimsKeyword" placeholder="例如：控制系統">
+                            </div>
+                        </div>
+                        <div>
+                            <h4>日期範圍</h4>
+                            <div class="form-group">
+                                <label>專利申請日（開始）</label>
+                                <input type="date" id="applicationDateFrom">
+                            </div>
+                            <div class="form-group">
+                                <label>專利申請日（結束）</label>
+                                <input type="date" id="applicationDateTo">
+                            </div>
+                            <div class="form-group">
+                                <label>公開日（開始）</label>
+                                <input type="date" id="publicationDateFrom">
+                            </div>
+                            <div class="form-group">
+                                <label>公開日（結束）</label>
+                                <input type="date" id="publicationDateTo">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" id="startConditionSearchBtn">條件檢索</button>
+                </div>
+
+                <!-- 載入動畫 -->
+                <div id="loading-condition" class="loading">
+                    <div class="spinner"></div>
+                    <p id="loading-text-condition">正在查詢，請稍候...</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill-condition"></div>
+                        <div class="progress-text" id="progress-text-condition">0%</div>
+                    </div>
+                </div>
+
+                <!-- 搜索結果顯示 -->
+                <div id="condition-search-results" style="display: none;">
+                    <h2>檢索結果</h2>
+                    <div class="export-section">
+                        <button class="btn btn-export" id="exportConditionExcelBtn" style="display: none;">Excel下載</button>
+                    </div>
+                    <div id="condition-patent-list"></div>
+                </div>
+            </div>
+
+            <!-- Excel批量分析 -->
+            <div id="excel-analysis" class="tab-content">
+                <h2>Excel分析</h2>
+                <p style="margin-bottom: 2rem; color: #666;">上傳包含專利資料的Excel檔案，系統將自動分析每筆專利並生成技術特徵與功效</p>
+
+                <div class="card">
+                    <h3>檔案上傳</h3>
+                    
+                    <div class="upload-requirements">
+                        <h4>Excel檔案要求</h4>
+                        <ul>
+                            <li><strong>必要欄位：</strong>公開公告號、專利名稱、摘要、專利範圍</li>
+                            <li><strong>檔案格式：</strong>.xlsx 或 .xls</li>
+                            <li><strong>檔案大小：</strong>最大 10MB</li>
+                            <li><strong>資料筆數：</strong>最多 500 筆專利</li>
+                        </ul>
+                    </div>
+
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-instructions">
+                            <h4>拖放Excel檔案到此處，或點擊選擇檔案</h4>
+                            <p>支援 .xlsx 和 .xls 格式</p>
+                        </div>
+                        <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display: none;">
+                        <button class="btn btn-primary" id="selectFileBtn">選擇Excel檔案</button>
+                    </div>
+
+                    <div id="fileInfo" class="file-info" style="display: none;">
+                        <!-- 檔案資訊將顯示在這裡 -->
+                    </div>
+
+                    <div style="margin-top: 1rem;">
+                        <button class="btn btn-success" id="analyzeExcelBtn" style="display: none;" disabled>開始分析</button>
+                        <button class="btn btn-secondary" id="clearFileBtn" style="display: none;">清除檔案</button>
+                    </div>
+                </div>
+
+                <!-- 載入動畫 -->
+                <div id="loading-excel" class="loading">
+                    <div class="spinner"></div>
+                    <p id="loading-text-excel">正在分析Excel檔案，請稍候...</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill-excel"></div>
+                        <div class="progress-text" id="progress-text-excel">0%</div>
+                    </div>
+                </div>
+
+                <!-- 分析結果摘要 -->
+                <div id="analysis-summary" class="analysis-summary" style="display: none;">
+                    <h4>分析結果摘要</h4>
+                    <div class="summary-stats">
+                        <div class="stat-item">
+                            <div class="stat-number" id="totalPatentsProcessed">0</div>
+                            <div class="stat-label">總處理筆數</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="successfulAnalysis">0</div>
+                            <div class="stat-label">成功分析</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="failedAnalysis">0</div>
+                            <div class="stat-label">分析失敗</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="analysisMethod">QWEN</div>
+                            <div class="stat-label">分析方法</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 分析結果顯示 -->
+                <div id="excel-analysis-results" style="display: none;">
+                    <h2>分析結果</h2>
+                    <div class="export-section">
+                        <button class="btn btn-export" id="exportAnalysisBtn" style="display: none;">下載分析結果</button>
+                    </div>
+                    <div id="excel-patent-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 聊天面板 -->
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-header">
+            <div class="chat-header-left">
+                <h3>🎃QWEN</h3>
+                <div id="memoryIndicator" class="memory-indicator" style="display: none;">
+                    <span id="memoryStatus">記憶模式</span>
+                </div>
+            </div>
+            <div class="chat-header-right">
+                <button class="memory-toggle-btn" id="memoryToggleBtn" title="切換記憶模式">
+                    <img 
+                        src="./static/iconmonstr-idea-11-240.png"
+                        alt="切換記憶模式" 
+                        width="24" 
+                        height="24"
+                    />
+                </button>
+                <button class="chat-history-btn" id="chatHistoryBtn" title="查看對話歷史">
+                    <img 
+                        src="./static/iconmonstr-time-17-240.png"
+                        alt="查看對話歷史" 
+                        width="24" 
+                        height="24"
+                    />
+                </button>
+                <button class="clear-memory-btn" id="clearMemoryBtn" title="清除記憶">
+                    <img 
+                        src="./static/iconmonstr-trash-can-27-240.png"
+                        alt="清除記憶" 
+                        width="24" 
+                        height="24"
+                    />
+                </button>
+                <button class="chat-close-btn" id="chatCloseBtn">&times;</button>
+            </div>
+        </div>
+        
+        <div class="memory-status-panel" id="memoryStatusPanel" style="display: none;">
+            <div class="memory-stats">
+                <span id="memoryStats">對話記憶: 準備中...</span>
+            </div>
+        </div>
+        
+        <div class="chat-status" id="chatStatus">
+            等待檢索結果...
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <div class="chat-message assistant">
+                <div class="message-content">
+                    Hi！🎃
+                    <br><br>
+                    ❗完成檢索後❗
+                    <br><br>
+                    才可以問我關於專利的任何問題
+                </div>
+                <div class="message-time">系統訊息</div>
+            </div>
+        </div>
+        
+        <div class="chat-typing" id="chatTyping">
+            🎃正在思考中...
+        </div>
+        
+        <div class="chat-input-area">
+            <div class="chat-mode-selector">
+                <label>
+                    <input type="checkbox" id="useMemoryCheckbox" checked> 
+                    使用對話記憶 (128k tokens)
+                </label>
+            </div>
+            <div class="chat-input-group">
+                <textarea class="chat-input" id="chatInput" placeholder="輸入您的問題..." rows="1" disabled></textarea>
+                <button class="chat-send-btn" id="chatSendBtn" disabled>➤</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 聊天開關按鈕 -->
+    <button class="chat-toggle-btn" id="chatToggleBtn" title="智能問答">
+        <img src="icon_ceV2.ico" alt="Chat Icon" class="chat-icon-img">
+    </button>
+
+    <!-- JavaScript 模塊 -->
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/search.js"></script>
+    <script src="js/chat.js"></script>
+    <script src="js/excel.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

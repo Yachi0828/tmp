@@ -1,0 +1,4235 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KYEC-專利檢索系統</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #cdcfd0;
+            min-height: 100vh;
+            color: #5f624e;
+        }
+
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #ede9e4;
+            min-height: 100vh;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.1);
+            display: flex;
+            position: relative;
+        }
+
+        .sidebar {
+            width: 320px;
+            background: #658398;
+            color: #fefefd;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .sidebar h2 {
+            font-size: 1.75rem;        /* 或寫成 font-weight: 700; */
+            margin-bottom: 2rem;
+            text-align: center;
+            background: linear-gradient(45deg, #e4e4dc, #fefefd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            margin-right: 0;
+            transition: margin-right 0.3s ease;
+        }
+
+        .main-content.chat-open {
+            margin-right: 400px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, #5a5859, #e4e4dc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .alert-banner {
+            background: linear-gradient(135deg, #EDE9E4 0%, #E4E4DC 100%);
+            border: 1px solid #658398;
+            color: #EDE9E4;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px #0c5460;
+        }
+
+        .alert-banner h3 {
+            margin-bottom: 0.5rem;
+            color: #658398;
+        }
+
+        .tabs {
+            display: flex;
+            background: #cdcfd0;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 1rem 2rem;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .tab.active {
+            background: linear-gradient(45deg, #658398, #8f9499);
+            color: #ede9e4;
+            transform: translateY(-2px);
+        }
+
+        .tab:hover:not(.active) {
+            background: rgba(86, 115, 87, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid #5a5859;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #658398;
+            box-shadow: 0 0 0 3px rgba(86, 115, 87, 0.1);
+        }
+
+        .form-group input[readonly] {
+            background-color: #f8f9fa;
+            color: #6c757d;
+            cursor: not-allowed;
+            border-color: #dee2e6;
+        }
+
+        .btn {
+            padding: 0.8rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            position: relative;
+            overflow: hidden;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #658398, #485c69);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(86, 115, 87, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #cdcfd0, #485c69);
+            color: #ede9e4;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: linear-gradient(45deg, #485c69, #cdcfd0);
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #658398, #0c5460);
+            color: #EDE9E4;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px #E4E4DC;
+        }
+
+        .btn-export {
+            background: linear-gradient(45deg, #658398, #0c5460);
+            color: #EDE9E4;
+        }
+
+        .btn-export:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px #E4E4DC;
+        }
+
+        .card {
+            background: #fefefd;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h3 {
+            margin-bottom: 1.5rem;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .status-success {
+            background: #EDE9E4;
+            color: #658398;
+        }
+
+        .status-warning {
+            background: #EDE9E4;
+            color: #658398;
+        }
+
+        .status-error {
+            background: #EDE9E4;
+            color: #658398;
+        }
+
+        .status-testing {
+            background: #EDE9E4;
+            color: #658398;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: #e0e0e0;
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 1rem 0;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #658398, #8f9499);
+            transition: width 0.5s ease;
+            border-radius: 6px;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #5a5859;
+            text-shadow: 0 0 3px rgba(255,255,255,0.8);
+        }
+
+        .patent-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            background: #fefefd;
+            padding: 1.5rem;
+        }
+
+        .patent-card:hover {
+            border-color: #658398;
+            box-shadow: 0 4px 15px rgba(86, 115, 87, 0.1);
+        }
+
+        .patent-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #5a5859;
+            margin-bottom: 0.5rem;
+        }
+
+        .patent-number {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .patent-metadata {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .metadata-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .metadata-label {
+            font-weight: 600;
+            color: #5a5859;
+            min-width: 60px;
+        }
+
+        .metadata-value {
+            color: #666;
+            flex: 1;
+        }
+
+        .country-flag {
+            display: inline-block;
+            width: 20px;
+            height: 15px;
+            border-radius: 2px;
+            margin-right: 0.5rem;
+            font-size: 0.8rem;
+            text-align: center;
+            line-height: 15px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .country-tw { background: #ff0000; }
+        .country-us { background: #b22234; }
+        .country-jp { background: #bc002d; }
+        .country-ep { background: #003399; }
+        .country-kr { background: #003478; }
+        .country-cn { background: #de2910; }
+        .country-wo { background: #0066cc; }
+        .country-other { background: #888; }
+
+        .features-effects {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .features-effects h4 {
+            margin-bottom: 0.5rem;
+            color: #5a5859;
+        }
+
+        .features-list, .effects-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .features-list li, .effects-list li {
+            padding: 0.2rem 0;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .features-list li:before {
+            content: "▪ ";
+            margin-right: 0.5rem;
+        }
+
+        .effects-list li:before {
+            content: "▴ ";
+            margin-right: 0.5rem;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e0e0e0;
+            border-top: 4px solid #658398;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .settings-section {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .keyword-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .keyword-tag {
+            background: rgba(86, 115, 87, 0.1);
+            color: #658398;
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+        }
+
+        .keyword-selection {
+            background: #f8f9fa;
+            border: 1px solid #658398;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .available-keywords {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            min-height: 100px;
+        }
+
+        .keyword-item, .synonym-item {
+            display: inline-block;
+            background: #007bff;
+            color: white;
+            padding: 0.3rem 0.8rem;
+            margin: 0.2rem;
+            border-radius: 15px;
+            cursor: grab;
+            user-select: none;
+            font-size: 0.9rem;
+        }
+
+        .keyword-item:active, .synonym-item:active {
+            cursor: grabbing;
+        }
+
+        .synonym-item {
+            background: #6c757d;
+        }
+
+        .search-conditions {
+            margin: 1rem 0;
+        }
+
+        .condition-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            background: #fff;
+        }
+
+        .keywords-dropzone {
+            flex: 1;
+            min-height: 40px;
+            border: 2px dashed #ffc107;
+            background: #fff8e1;
+            border-radius: 5px;
+            padding: 0.5rem;
+            position: relative;
+        }
+
+        .keywords-dropzone.dragover {
+            border-color: #ff9800;
+            background: #ffecb3;
+        }
+
+        .dropzone-hint {
+            color: #666;
+            font-style: italic;
+        }
+
+        .dropped-keywords {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+        }
+
+        .dropped-keyword {
+            background: #28a745;
+            color: white;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            position: relative;
+        }
+
+        .dropped-keyword .remove-btn {
+            margin-left: 0.3rem;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .field-selector, .logic-selector {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .add-condition-btn {
+            position: absolute;
+            right: 1rem;
+            bottom: 1rem;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #6f42c1;
+            color: white;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .keyword-checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .keyword-checkbox {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem;
+            background: white;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            transition: all 0.3s ease;
+        }
+
+        .keyword-checkbox:hover {
+            background: rgba(86, 115, 87, 0.1);
+            border-color: #658398;
+        }
+
+        .keyword-checkbox input {
+            margin-right: 0.5rem;
+            width: auto;
+        }
+
+        .keyword-checkbox.selected {
+            background: rgba(86, 115, 87, 0.2);
+            border-color: #658398;
+        }
+
+        .custom-keywords-section {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .error-message {
+            background: linear-gradient(135deg, #f5c6cb 0%, #E4E4DC 100%);
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border: 1px solid #fefefd;
+        }
+
+        .success-message {
+            background: linear-gradient(135deg, #d4edda 0%, #E4E4DC 100%);
+            color: #155724;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border: 1px solid #fefefd;
+        }
+
+        .grid {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .grid-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .grid-3 {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+            font-style: italic;
+        }
+
+        .patent-lookup {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .patent-lookup input {
+            margin-bottom: 0.5rem;
+        }
+
+        .related-links {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 1rem;
+        }
+
+        .related-links a {
+            color: #e4e4dc;
+            text-decoration: none;
+            display: block;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .related-links a:hover {
+            color: #fefefd;
+            text-decoration: underline;
+        }
+
+        .export-section {
+            margin-top: 2rem;
+            text-align: center;
+        }
+
+        /* Excel上傳相關樣式 */
+        .upload-area {
+            border: 2px dashed #658398;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            background: #f8f9fa;
+            margin: 1rem 0;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            border-color: #5a5859;
+            background: #f0f0f0;
+        }
+
+        .upload-area.dragover {
+            border-color: #658398;
+            background: rgba(86, 115, 87, 0.1);
+        }
+
+        .upload-instructions {
+            color: #666;
+            margin-bottom: 1rem;
+        }
+
+        .upload-requirements {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            text-align: left;
+        }
+
+        .upload-requirements h4 {
+            color: #658398;
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-requirements ul {
+            margin-left: 1rem;
+            color: #666;
+        }
+
+        .file-info {
+            background: rgba(86, 115, 87, 0.1);
+            border-radius: 5px;
+            padding: 0.5rem;
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+
+        .analysis-summary {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .analysis-summary h4 {
+            color: #658398;
+            margin-bottom: 0.5rem;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #658398;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* 聊天界面樣式 */
+        .chat-panel {
+            position: fixed;
+            right: -400px;
+            top: 0;
+            width: 400px;
+            height: 100vh;
+            background: #fefefd;
+            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+            transition: right 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-panel.open {
+            right: 0;
+        }
+
+        .chat-header {
+            background: #658398;
+            color: #fefefd;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .chat-close-btn {
+            background: none;
+            border: none;
+            color: #fefefd;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chat-close-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .chat-message {
+            margin-bottom: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-message.user {
+            align-items: flex-end;
+        }
+
+        .chat-message.assistant {
+            align-items: flex-start;
+        }
+
+        .chat-message.system {
+            align-items: center;
+        }
+
+        .message-content {
+            max-width: 80%;
+            padding: 0.8rem;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .chat-icon-img {
+            width: 50px;
+            height: 50px;
+            display: block;
+        }
+
+        .chat-message.user .message-content {
+            background: #658398;
+            color: #fefefd;
+            border-bottom-right-radius: 5px;
+        }
+
+        .chat-message.assistant .message-content {
+            background: #e9ecef;
+            color: #495057;
+            border-bottom-left-radius: 5px;
+        }
+
+        .chat-message.system .message-content {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+            max-width: 90%;
+            text-align: center;
+            font-size: 0.8rem;
+        }
+
+        .message-time {
+            font-size: 0.7rem;
+            color: #6c757d;
+            margin-top: 0.3rem;
+            padding: 0 0.5rem;
+        }
+
+        .chat-input-area {
+            padding: 1rem;
+            border-top: 1px solid #e0e0e0;
+            background: #fefefd;
+        }
+
+        .chat-input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            resize: none;
+            max-height: 100px;
+            font-family: inherit;
+        }
+
+        .chat-send-btn {
+            background: #658398;
+            color: #fefefd;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+        }
+
+        .chat-send-btn:hover:not(:disabled) {
+            background: #5a7386;
+        }
+
+        .chat-send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .chat-toggle-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 60px;
+            height: 60px;
+            background: #658398;
+            color: #fefefd;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .chat-toggle-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .chat-status {
+            padding: 0.5rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #6c757d;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .chat-typing {
+            display: none;
+            padding: 0.8rem;
+            color: #6c757d;
+            font-style: italic;
+            font-size: 0.9rem;
+        }
+
+        .chat-typing.show {
+            display: block;
+        }
+
+        .patent-abstract {
+            background: #f8f9fa !important;
+            border-left: 4px solid #658398 !important;
+            padding: 1rem !important;
+            margin: 1rem 0 !important;
+            border-radius: 4px !important;
+        }
+
+        .patent-abstract h4 {
+            color: #5a5859 !important;
+            margin-bottom: 0.5rem !important;
+            font-size: 1rem !important;
+        }
+
+        .patent-abstract p {
+            color: #666 !important;
+            line-height: 1.6 !important;
+            margin: 0 !important;
+            text-align: justify !important;
+        }
+
+        /* 新增：對話記憶功能樣式 */
+        .memory-indicator {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.2rem 0.5rem;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .memory-indicator.active {
+            background: #4CAF50;
+        }
+
+        .memory-indicator.inactive {
+            background: #FFC107;
+            color: #333;
+        }
+
+        .memory-toggle-btn, .chat-history-btn, .clear-memory-btn {
+            background: none;
+            border: none;
+            color: #fefefd;
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 0.2rem;
+            border-radius: 3px;
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+        }
+
+        .memory-toggle-btn:hover, .chat-history-btn:hover, .clear-memory-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .memory-status-panel {
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 0.5rem;
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .memory-stats {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .chat-mode-selector {
+            display: flex;
+            align-items: center;
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+            color: #666;
+        }
+
+        .chat-mode-selector input[type="checkbox"] {
+            margin-right: 0.3rem;
+            width: auto;
+        }
+
+        /* 消息類型樣式 */
+        .chat-message.memory-enabled .message-content {
+            border-left: 3px solid #4CAF50;
+        }
+
+        .chat-message.memory-disabled .message-content {
+            border-left: 3px solid #FFC107;
+        }
+
+        .message-meta {
+            font-size: 0.6rem;
+            color: #999;
+            margin-top: 0.2rem;
+            font-style: italic;
+            padding: 0 0.5rem;
+        }
+
+        /* 聊天頭部佈局 */
+        .chat-header-left {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .chat-header-right {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* 模態框樣式 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            max-width: 80%;
+            max-height: 80%;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            padding: 1rem;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #658398;
+            color: white;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-body {
+            max-height: 60vh;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .history-item {
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f8f9fa;
+        }
+
+        .history-time {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 0.3rem;
+        }
+
+        .history-question {
+            font-weight: bold;
+            margin-bottom: 0.3rem;
+            color: #333;
+        }
+
+        .history-answer {
+            color: #555;
+            line-height: 1.4;
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                order: 2;
+            }
+            .main-content {
+                order: 1;
+                margin-right: 0 !important;
+            }
+            .grid-2, .grid-3 {
+                grid-template-columns: 1fr;
+            }
+            .chat-panel {
+                width: 100%;
+                right: -100%;
+            }
+            .chat-toggle-btn {
+                bottom: 1rem;
+                right: 1rem;
+                width: 50px;
+                height: 50px;
+                font-size: 1.2rem;
+            }
+        }
+
+        .keyword-synonym-groups {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .keyword-group {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1rem;
+            background: #fafafa;
+        }
+
+        .keyword-group h4 {
+            margin: 0 0 0.5rem 0;
+            color: #333;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .main-keyword {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            padding: 0.5rem;
+            background: #fff;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        .main-keyword input[type="checkbox"] {
+            transform: scale(1.2);
+        }
+
+        .main-keyword label {
+            font-weight: 600;
+            color: #2c5aa0;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .keyword-actions {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .keyword-actions .btn {
+            padding: 0.5rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .keyword-actions .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .keyword-actions .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .keyword-actions .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .keyword-actions .btn-success:hover {
+            background: #218838;
+        }
+
+        .keyword-actions .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .keyword-actions .btn-primary:hover {
+            background: #0056b3;
+        }
+
+        /* 修改：條件行樣式，為內聯+按鈕預留空間 */
+        .condition-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            background: #fff;
+            position: relative;
+        }
+
+        /* 修改：內聯+按鈕樣式 */
+        .add-condition-btn-inline {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #6f42c1;
+            color: white;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .add-condition-btn-inline:hover {
+            background: #5a32a3;
+        }
+
+        /* 移除舊的絕對定位+按鈕樣式 */
+        .add-condition-btn {
+            display: none;
+        }
+
+        .synonyms-section {
+            margin-left: 1rem;
+        }
+
+        .synonyms-section > label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .synonym-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .synonym-option {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.3rem 0.6rem;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .synonym-option:hover {
+            background: #f0f8ff;
+            border-color: #5a9;
+        }
+
+        .synonym-option.selected {
+            background: #e8f4f8;
+            border-color: #5a9;
+            color: #2c5aa0;
+        }
+
+        .synonym-option input[type="checkbox"] {
+            margin: 0;
+        }
+
+        .synonym-option label {
+            margin: 0;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .group-logic-indicator {
+            font-size: 0.8rem;
+            color: #888;
+            text-align: center;
+            margin: 0.5rem 0;
+            font-style: italic;
+        }
+
+        .and-logic-separator {
+            text-align: center;
+                margin: 1rem 0;
+            position: relative;
+        }
+
+        .and-logic-separator::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #ddd;
+            z-index: 1;
+        }
+
+        .and-logic-separator span {
+            background: #fff;
+            padding: 0.3rem 0.8rem;
+            color: #666;
+            font-weight: 600;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            position: relative;
+            z-index: 2;
+        }
+
+        @media (max-width: 768px) {
+            .synonym-options {
+                flex-direction: column;
+            }
+    
+            .synonym-option {
+                width: 100%;
+                justify-content: flex-start;
+            }
+        }
+
+        
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- 側邊欄 -->
+        <div class="sidebar">
+            <h2>系統設定</h2>
+
+            <div class="settings-section">
+                <h3>GPSS API 設定</h3>
+                <div class="form-group">
+                    <input type="password" id="gpssApiKey" placeholder="請輸入 API 驗證碼">
+                    <small style="color: #ede9e4;">⚠ 請到智慧財產局申請API驗證碼</small>
+                    <small style="color: #ede9e4;">⚠ 每人每日檢索輸出流量限制為10,000筆<br/></small>
+                    <small style="color: #ede9e4;">(此系統單次檢索輸出最多1,000筆)</small>
+                </div>
+                <button class="btn btn-secondary" id="testGpssBtn">API驗證</button>
+                <div class="status-indicator status-testing" id="gpssStatus">
+                    <span>X</span> 尚未驗證
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>專利全文查詢<br/></h3>
+                <div class="form-group">
+                    <input style="margin: 0.5em 0;" type="text" id="patentLookupInput" placeholder="輸入公開公告號">
+                    <button class="btn btn-secondary" id="patentLookupBtn">查詢專利</button>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>相關連結</h3>
+                <div class="related-links">
+                    <a href="https://tiponet.tipo.gov.tw/gpss1/gpsskmc/gpssapi?@@0.532614314057245" target="_blank">
+                        - GPSS API驗證碼申請
+                    </a>
+                    <a href="https://www.tipo.gov.tw/" target="_blank">
+                        - 智慧財產局官網
+                    </a>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>API 設定</h3>
+                <div class="form-group">
+                    <input type="text" id="apiBaseUrl" value="http://localhost:8005" placeholder="API地址">
+                </div>
+                <button class="btn btn-secondary" id="testApiBtn">測試API連接</button>
+                <div class="status-indicator status-testing" id="apiStatus">
+                    <span>…</span> 等待測試
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>服務狀態</h3>
+                <div class="status-indicator status-testing" id="qwenStatus">
+                    <span>?</span> Qwen 服務
+                </div>
+            </div>
+        </div>
+
+        <!-- 主要內容區 -->
+        <div class="main-content">
+            <div class="header">
+                <h1 style="font-weight: bold;"><B>KYEC-專利檢索系統</B></h1>
+                <p>🎃</p>
+            </div>
+
+            <!-- 分頁標籤 -->
+            <div class="tabs" id="tabContainer">
+                <button class="tab active" data-tab="tech-search">技術描述查詢</button>
+                <button class="tab" data-tab="condition-search">條件查詢</button>
+                <button class="tab" data-tab="excel-analysis">資料分析</button>
+            </div>
+
+            <!-- 技術描述查詢 -->
+            <div id="tech-search" class="tab-content active">
+                <h2>技術描述查詢</h2>
+                <div class="form-group">
+                    <label for="techDescription">請詳細描述您要查詢的技術:</label>
+                    <textarea id="techDescription" rows="6" placeholder="例如：自動化晶圓探針台系統，具備精密定位控制和多點並行測試功能，適用於高頻 RF 晶片測試..."></textarea>
+                </div>
+
+                <button class="btn btn-primary" id="generateKeywordsBtn">生成關鍵字</button>
+
+                <!-- 關鍵字選擇界面 -->
+                <div id="keyword-selection" class="keyword-selection" style="display: none;">
+                    <h3>請拖拉關鍵字到搜索條件中</h3>
+
+                    <div class="keyword-actions">
+                        <button id="clear-all-conditions-btn" class="btn btn-warning">清除全部</button>
+                        <button id="auto-generate-conditions-btn" class="btn btn-success">一鍵檢索</button>
+                        <button id="manual-search-btn" class="btn btn-primary">手動檢索</button>
+                    </div>
+    
+                    <div id="available-keywords" class="available-keywords">
+                        <!-- 動態生成可拖拉的關鍵字和同義詞 -->
+                    </div>
+
+                    <div id="search-conditions" class="search-conditions">
+                        <div class="condition-row" data-condition-index="0">
+                            <div class="keywords-dropzone" data-condition="0">
+                                <span class="dropzone-hint">拖拉關鍵字到這裡</span>
+                                <div class="dropped-keywords"></div>
+                            </div>
+                            <select class="field-selector">
+                                <option value="TI">專利名稱</option>
+                                <option value="AB">摘要</option>
+                                <option value="CL">專利範圍</option>
+                            </select>
+                            <select class="logic-selector">
+                                <option value="AND">AND</option>
+                                <option value="OR">OR</option>
+                            </select>
+                            <!-- 修改：將+按鈕移到每行右側 -->
+                            <button class="add-condition-btn-inline">+</button>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- 載入動畫 -->
+                <div id="loading-tech" class="loading">
+                    <div class="spinner"></div>
+                    <p id="loading-text">正在進行查詢，請稍候...</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                        <div class="progress-text" id="progress-text">0%</div>
+                    </div>
+                </div>
+
+                <!-- 關鍵字結果 -->
+                <div id="keywords-result" style="display: none;">
+                    <div class="card">
+                        <h3>最終使用的關鍵字</h3>
+                        <div id="final-keywords" class="keyword-tags"></div>
+                    </div>
+                </div>
+
+                <!-- 搜索結果顯示 -->
+                <div id="tech-search-results" style="display: none;">
+                    <h2>檢索結果</h2>
+                    <div class="export-section">
+                        <button class="btn btn-export" id="exportExcelBtn" style="display: none;">Excel下載</button>
+                    </div>
+                    <div id="tech-patent-list"></div>
+                </div>
+            </div>
+
+            <!-- 條件查詢 -->
+            <div id="condition-search" class="tab-content">
+                <h2>條件查詢</h2>
+                <p style="margin-bottom: 2rem; color: #666;">透過關鍵欄位直接查詢專利</p>
+
+                <div class="card">
+                    <h3>檢索條件</h3>
+                    <div class="grid grid-3">
+                        <div>
+                            <h4>基本參數</h4>
+                            <div class="form-group">
+                                <label>申請人</label>
+                                <input type="text" id="applicant" placeholder="例如：愛得萬">
+                            </div>
+                            <div class="form-group">
+                                <label>發明人</label>
+                                <input type="text" id="inventor" placeholder="例如：張三">
+                            </div>
+                            <div class="form-group">
+                                <label>公開公告號</label>
+                                <input type="text" id="patentNumber" placeholder="例如：TW202436881A">
+                            </div>
+                            <div class="form-group">
+                                <label>申請號</label>
+                                <input type="text" id="applicationNumber" placeholder="例如：TW113115234">
+                            </div>
+                        </div>
+                        <div>
+                            <h4>技術分類</h4>
+                            <div class="form-group">
+                                <label>IPC 分類</label>
+                                <input type="text" id="ipcClass" placeholder="例如：G01R">
+                            </div>
+                            <div class="form-group">
+                                <label>專利名稱關鍵字</label>
+                                <input type="text" id="titleKeyword" placeholder="例如：測試">
+                            </div>
+                            <div class="form-group">
+                                <label>摘要關鍵字</label>
+                                <input type="text" id="abstractKeyword" placeholder="例如：半導體">
+                            </div>
+                            <div class="form-group">
+                                <label>專利範圍關鍵字</label>
+                                <input type="text" id="claimsKeyword" placeholder="例如：控制系統">
+                            </div>
+                        </div>
+                        <div>
+                            <h4>日期範圍</h4>
+                            <div class="form-group">
+                                <label>專利申請日（開始）</label>
+                                <input type="date" id="applicationDateFrom">
+                            </div>
+                            <div class="form-group">
+                                <label>專利申請日（結束）</label>
+                                <input type="date" id="applicationDateTo">
+                            </div>
+                            <div class="form-group">
+                                <label>公開日（開始）</label>
+                                <input type="date" id="publicationDateFrom">
+                            </div>
+                            <div class="form-group">
+                                <label>公開日（結束）</label>
+                                <input type="date" id="publicationDateTo">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" id="startConditionSearchBtn">條件檢索</button>
+                </div>
+
+                <!-- 載入動畫 -->
+                <div id="loading-condition" class="loading">
+                    <div class="spinner"></div>
+                    <p id="loading-text-condition">正在查詢，請稍候...</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill-condition"></div>
+                        <div class="progress-text" id="progress-text-condition">0%</div>
+                    </div>
+                </div>
+
+                <!-- 搜索結果顯示 -->
+                <div id="condition-search-results" style="display: none;">
+                    <h2>檢索結果</h2>
+                    <div class="export-section">
+                        <button class="btn btn-export" id="exportConditionExcelBtn" style="display: none;">Excel下載</button>
+                    </div>
+                    <div id="condition-patent-list"></div>
+                </div>
+            </div>
+
+            <!-- Excel批量分析 -->
+            <div id="excel-analysis" class="tab-content">
+                <h2>Excel分析</h2>
+                <p style="margin-bottom: 2rem; color: #666;">上傳包含專利資料的Excel檔案，系統將自動分析每筆專利並生成技術特徵與功效</p>
+
+                <div class="card">
+                    <h3>檔案上傳</h3>
+                    
+                    <div class="upload-requirements">
+                        <h4>Excel檔案要求</h4>
+                        <ul>
+                            <li><strong>必要欄位：</strong>公開公告號、專利名稱、摘要、專利範圍</li>
+                            <li><strong>檔案格式：</strong>.xlsx 或 .xls</li>
+                            <li><strong>檔案大小：</strong>最大 10MB</li>
+                            <li><strong>資料筆數：</strong>最多 500 筆專利</li>
+                        </ul>
+                    </div>
+
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-instructions">
+                            <h4>拖放Excel檔案到此處，或點擊選擇檔案</h4>
+                            <p>支援 .xlsx 和 .xls 格式</p>
+                        </div>
+                        <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display: none;">
+                        <button class="btn btn-primary" id="selectFileBtn">選擇Excel檔案</button>
+                    </div>
+
+                    <div id="fileInfo" class="file-info" style="display: none;">
+                        <!-- 檔案資訊將顯示在這裡 -->
+                    </div>
+
+                    <div style="margin-top: 1rem;">
+                        <button class="btn btn-success" id="analyzeExcelBtn" style="display: none;" disabled>開始分析</button>
+                        <button class="btn btn-secondary" id="clearFileBtn" style="display: none;">清除檔案</button>
+                    </div>
+                </div>
+
+                <!-- 載入動畫 -->
+                <div id="loading-excel" class="loading">
+                    <div class="spinner"></div>
+                    <p id="loading-text-excel">正在分析Excel檔案，請稍候...</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill-excel"></div>
+                        <div class="progress-text" id="progress-text-excel">0%</div>
+                    </div>
+                </div>
+
+                <!-- 分析結果摘要 -->
+                <div id="analysis-summary" class="analysis-summary" style="display: none;">
+                    <h4>分析結果摘要</h4>
+                    <div class="summary-stats">
+                        <div class="stat-item">
+                            <div class="stat-number" id="totalPatentsProcessed">0</div>
+                            <div class="stat-label">總處理筆數</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="successfulAnalysis">0</div>
+                            <div class="stat-label">成功分析</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="failedAnalysis">0</div>
+                            <div class="stat-label">分析失敗</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="analysisMethod">QWEN</div>
+                            <div class="stat-label">分析方法</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 分析結果顯示 -->
+                <div id="excel-analysis-results" style="display: none;">
+                    <h2>分析結果</h2>
+                    <div class="export-section">
+                        <button class="btn btn-export" id="exportAnalysisBtn" style="display: none;">下載分析結果</button>
+                    </div>
+                    <div id="excel-patent-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 聊天面板 - 更新版 -->
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-header">
+            <div class="chat-header-left">
+                <h3>🎃QWEN</h3>
+                <div id="memoryIndicator" class="memory-indicator" style="display: none;">
+                    <span id="memoryStatus">記憶模式</span>
+                </div>
+            </div>
+            <div class="chat-header-right">
+                <button class="memory-toggle-btn" id="memoryToggleBtn" title="切換記憶模式">
+                    <img 
+                        src="./static/iconmonstr-idea-11-240.png"
+                        alt="切換記憶模式" 
+                        width="24" 
+                        height="24"FFFBF0
+                    />
+                </button>
+                <button class="chat-history-btn" id="chatHistoryBtn" title="查看對話歷史">
+                    <img 
+                        src="./static/iconmonstr-time-17-240.png"
+                        alt="查看對話歷史" 
+                        width="24" 
+                        height="24"
+                    />
+                </button>
+                <button class="clear-memory-btn" id="clearMemoryBtn" title="清除記憶">
+                    <img 
+                        src="./static/iconmonstr-trash-can-27-240.png"
+                        alt="清除記憶" 
+                        width="24" 
+                        height="24"
+                    />
+                </button>
+                <button class="chat-close-btn" id="chatCloseBtn">&times;</button>
+            </div>
+        </div>
+        
+        <div class="memory-status-panel" id="memoryStatusPanel" style="display: none;">
+            <div class="memory-stats">
+                <span id="memoryStats">對話記憶: 準備中...</span>
+            </div>
+        </div>
+        
+        <div class="chat-status" id="chatStatus">
+            等待檢索結果...
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <div class="chat-message assistant">
+                <div class="message-content">
+                    Hi！🎃
+                    <br><br>
+                    ❗完成檢索後❗
+                    <br><br>
+                    才可以問我關於專利的任何問題
+                </div>
+                <div class="message-time">系統訊息</div>
+            </div>
+        </div>
+        
+        <div class="chat-typing" id="chatTyping">
+            🎃正在思考中...
+        </div>
+        
+        <div class="chat-input-area">
+            <div class="chat-mode-selector">
+                <label>
+                    <input type="checkbox" id="useMemoryCheckbox" checked> 
+                    使用對話記憶 (128k tokens)
+                </label>
+            </div>
+            <div class="chat-input-group">
+                <textarea class="chat-input" id="chatInput" placeholder="輸入您的問題..." rows="1" disabled></textarea>
+                <button class="chat-send-btn" id="chatSendBtn" disabled>➤</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 聊天開關按鈕 -->
+    <button class="chat-toggle-btn" id="chatToggleBtn" title="智能問答">
+        <img src="icon_ceV2.ico" alt="Chat Icon" class="chat-icon-img">
+    </button>
+
+    <script>
+        class ImprovedPatentSearchApp {
+            constructor() {
+                this.searchResults = {
+                    tech: null,
+                    condition: null,
+                    excel: null
+                };
+                this.currentTab = 'tech-search';
+                this.isSearching = false;
+                this.apiBaseUrl = 'http://localhost:8005';
+                this.apiKeyVerified = false;
+                this.currentSessionId = this.generateSessionId();
+                this.generatedKeywords = [];
+                this.selectedFile = null;
+                this.currentAnalysisResults = null;
+                this.progressIntervals = {};
+                
+                // 聊天相關
+                this.chatResults = null;
+                this.chatEnabled = false;
+                this.chatHistory = [];
+                
+                // 🆕 對話記憶相關屬性
+                this.memoryEnabled = true;
+                this.memoryStatus = {
+                    cached: false,
+                    count: 0,
+                    hasHistory: false,
+                    ready: false
+                };
+        
+                this.init();
+            }
+
+            generateSessionId() {
+                return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            }
+
+            determineApiUrl() {
+                const hostname = window.location.hostname;
+                if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                    return 'http://localhost:8005';
+                }
+                // 生產環境可以從環境變數讀取或使用相對路徑
+                return window.location.origin;
+            }
+
+            init() {
+                this.cacheElements();
+                this.bindEvents();
+                this.showWelcomeMessage();
+                
+                // 自動測試API連接
+                setTimeout(() => {
+                    this.testApiConnection();
+                }, 1000);
+
+                // 初始化聊天
+                this.initChat();
+                this.initEnhancedChat();  // 🆕 初始化增強版聊天
+            }
+
+            cacheElements() {
+                this.elements = {
+                    // API設定
+                    apiBaseUrl: document.getElementById('apiBaseUrl'),
+                    testApiBtn: document.getElementById('testApiBtn'),
+                    gpssApiKey: document.getElementById('gpssApiKey'),
+                    testGpssBtn: document.getElementById('testGpssBtn'),
+                    
+                    // 狀態指示器
+                    apiStatus: document.getElementById('apiStatus'),
+                    gpssStatus: document.getElementById('gpssStatus'),
+                    qwenStatus: document.getElementById('qwenStatus'),
+                    
+                    // 專利查詢
+                    patentLookupInput: document.getElementById('patentLookupInput'),
+                    patentLookupBtn: document.getElementById('patentLookupBtn'),
+                    
+                    // 分頁和內容
+                    tabContainer: document.getElementById('tabContainer'),
+                    techDescription: document.getElementById('techDescription'),
+                    
+                    // 新的關鍵字流程
+                    generateKeywordsBtn: document.getElementById('generateKeywordsBtn'),
+                    keywordSelection: document.getElementById('keyword-selection'),
+                    keywordCheckboxGroup: document.getElementById('keyword-checkbox-group'),
+                    customKeywords: document.getElementById('customKeywords'),
+                    confirmSearchBtn: document.getElementById('confirmSearchBtn'),
+                    cancelKeywordBtn: document.getElementById('cancelKeywordBtn'),
+                    confirmSynonymSearchBtn: document.getElementById('confirmSynonymSearchBtn'),
+                    keywordSynonymGroups: document.getElementById('keyword-synonym-groups'),
+
+
+                    loadingTech: document.getElementById('loading-tech'),
+                    progressFill: document.getElementById('progress-fill'),
+                    progressText: document.getElementById('progress-text'),
+                    loadingText: document.getElementById('loading-text'),
+                    keywordsResult: document.getElementById('keywords-result'),
+                    finalKeywords: document.getElementById('final-keywords'),
+                    
+                    // 技術搜索結果
+                    techSearchResults: document.getElementById('tech-search-results'),
+                    techPatentList: document.getElementById('tech-patent-list'),
+                    exportExcelBtn: document.getElementById('exportExcelBtn'),
+                    
+                    // 條件搜索
+                    startConditionSearchBtn: document.getElementById('startConditionSearchBtn'),
+                    loadingCondition: document.getElementById('loading-condition'),
+                    conditionSearchResults: document.getElementById('condition-search-results'),
+                    conditionPatentList: document.getElementById('condition-patent-list'),
+                    exportConditionExcelBtn: document.getElementById('exportConditionExcelBtn'),
+                    
+                    // 條件搜索輸入
+                    applicant: document.getElementById('applicant'),
+                    inventor: document.getElementById('inventor'),
+                    patentNumber: document.getElementById('patentNumber'),
+                    applicationNumber: document.getElementById('applicationNumber'),
+                    ipcClass: document.getElementById('ipcClass'),
+                    titleKeyword: document.getElementById('titleKeyword'),
+                    abstractKeyword: document.getElementById('abstractKeyword'),
+                    claimsKeyword: document.getElementById('claimsKeyword'),
+                    applicationDateFrom: document.getElementById('applicationDateFrom'),
+                    applicationDateTo: document.getElementById('applicationDateTo'),
+                    publicationDateFrom: document.getElementById('publicationDateFrom'),
+                    publicationDateTo: document.getElementById('publicationDateTo'),
+
+                    // Excel分析相關元素
+                    uploadArea: document.getElementById('uploadArea'),
+                    excelFileInput: document.getElementById('excelFileInput'),
+                    selectFileBtn: document.getElementById('selectFileBtn'),
+                    fileInfo: document.getElementById('fileInfo'),
+                    analyzeExcelBtn: document.getElementById('analyzeExcelBtn'),
+                    clearFileBtn: document.getElementById('clearFileBtn'),
+                    loadingExcel: document.getElementById('loading-excel'),
+                    loadingTextExcel: document.getElementById('loading-text-excel'),
+                    progressFillExcel: document.getElementById('progress-fill-excel'),
+                    progressTextExcel: document.getElementById('progress-text-excel'),
+                    analysisSummary: document.getElementById('analysis-summary'),
+                    totalPatentsProcessed: document.getElementById('totalPatentsProcessed'),
+                    successfulAnalysis: document.getElementById('successfulAnalysis'),
+                    failedAnalysis: document.getElementById('failedAnalysis'),
+                    analysisMethod: document.getElementById('analysisMethod'),
+                    excelAnalysisResults: document.getElementById('excel-analysis-results'),
+                    excelPatentList: document.getElementById('excel-patent-list'),
+                    exportAnalysisBtn: document.getElementById('exportAnalysisBtn'),
+
+                    // 聊天相關元素
+                    chatPanel: document.getElementById('chatPanel'),
+                    chatToggleBtn: document.getElementById('chatToggleBtn'),
+                    chatCloseBtn: document.getElementById('chatCloseBtn'),
+                    chatMessages: document.getElementById('chatMessages'),
+                    chatInput: document.getElementById('chatInput'),
+                    chatSendBtn: document.getElementById('chatSendBtn'),
+                    chatStatus: document.getElementById('chatStatus'),
+                    chatTyping: document.getElementById('chatTyping'),
+                    mainContent: document.querySelector('.main-content'),
+                    
+                    // 🆕 對話記憶相關元素
+                    memoryToggleBtn: document.getElementById('memoryToggleBtn'),
+                    chatHistoryBtn: document.getElementById('chatHistoryBtn'),
+                    clearMemoryBtn: document.getElementById('clearMemoryBtn'),
+                    useMemoryCheckbox: document.getElementById('useMemoryCheckbox'),
+                    memoryIndicator: document.getElementById('memoryIndicator'),
+                    memoryStatusPanel: document.getElementById('memoryStatusPanel'),
+                    memoryStats: document.getElementById('memoryStats'),
+                    memoryIcon: document.getElementById('memoryIcon'),
+                    memoryStatus: document.getElementById('memoryStatus')
+                };
+            }
+
+            addConditionRow() {
+                const searchConditions = document.getElementById('search-conditions');
+                const conditionIndex = searchConditions.children.length;
+    
+                const newRow = this.createConditionRow(conditionIndex);
+                searchConditions.appendChild(newRow);
+    
+                // 重新初始化新的拖放區域
+                this.initializeDropZones();
+            }
+
+            clearAllConditions() {
+                // 清除所有拖放區域的關鍵字
+                const allDropZones = document.querySelectorAll('.keywords-dropzone');
+                allDropZones.forEach(zone => {
+                    const droppedKeywords = zone.querySelector('.dropped-keywords');
+                    const hint = zone.querySelector('.dropzone-hint');
+
+                    droppedKeywords.innerHTML = '';
+                    if (hint) hint.style.display = 'block';
+                });
+
+                // 重置為只有一個條件行
+                const searchConditions = document.getElementById('search-conditions');
+                const firstRow = searchConditions.querySelector('.condition-row');
+
+                // 清除第一行的內容
+                const firstDropZone = firstRow.querySelector('.dropped-keywords');
+                const firstHint = firstRow.querySelector('.dropzone-hint');
+                firstDropZone.innerHTML = '';
+                if (firstHint) firstHint.style.display = 'block';
+
+                // 重置選擇器
+                firstRow.querySelector('.field-selector').selectedIndex = 0;
+                firstRow.querySelector('.logic-selector').selectedIndex = 0;
+
+                // 移除其他多餘的行
+                const allRows = searchConditions.querySelectorAll('.condition-row');
+                for (let i = 1; i < allRows.length; i++) {
+                    allRows[i].remove();
+                }
+
+                this.showSuccess('已清除所有搜索條件');
+            }
+
+            autoGenerateConditions() {
+                // 清除現有條件
+                this.clearAllConditions();
+    
+                // 獲取所有關鍵字和同義詞組合
+                const keywordsWithSynonyms = this.generatedKeywords || [];
+    
+                if (keywordsWithSynonyms.length === 0) {
+                    this.showError('沒有可用的關鍵字組合');
+                    return;
+                }
+
+                const searchConditions = document.getElementById('search-conditions');
+
+                keywordsWithSynonyms.forEach((group, groupIndex) => {
+                    const keyword = group.keyword || '';
+                    const synonyms = group.synonyms || [];
+
+                    // 收集這一組的所有詞彙
+                    const allTerms = [];
+                    if (keyword) allTerms.push(keyword);
+                    allTerms.push(...synonyms);
+
+                    if (allTerms.length === 0) return;
+
+                    let conditionRow;
+
+                    if (groupIndex === 0) {
+                        // 使用第一行
+                        conditionRow = searchConditions.querySelector('.condition-row');
+                    } else {
+                        // 創建新行
+                        conditionRow = this.createConditionRow(groupIndex);
+                        searchConditions.appendChild(conditionRow);
+                    }
+
+                    // 填充關鍵字到該行
+                    const dropZone = conditionRow.querySelector('.keywords-dropzone');
+                    allTerms.forEach(term => {
+                        this.addKeywordToDropZone(dropZone, term, 'auto');
+                    });
+
+                    // 設置欄位為摘要（通常摘要包含最多信息）
+                    const fieldSelector = conditionRow.querySelector('.field-selector');
+                    fieldSelector.value = 'AB';
+
+                    // 設置邏輯為AND（除了最後一行）
+                    const logicSelector = conditionRow.querySelector('.logic-selector');
+                        if (groupIndex < keywordsWithSynonyms.length - 1) {
+                        logicSelector.value = 'AND';
+                        }
+                });
+
+                // 重新初始化拖放區域
+                this.initializeDropZones();
+
+                this.showSuccess(`已自動生成 ${keywordsWithSynonyms.length} 個搜索條件組`);
+            }
+
+            async manualSearch() {
+                // 防止重複提交
+                if (this.isSearching) {
+                    this.showError('正在進行搜尋，請稍候...');
+                    return;
+                }
+
+                // 驗證API Key
+                if (!this.validateApiKey()) return;
+
+                try {
+                    // 收集手動配置的搜索條件
+                    const searchConditions = this.collectKeywordSynonymSelections();
+
+                    if (searchConditions.length === 0) {
+                        this.showError('請先拖拉關鍵字到搜索條件中');
+                        return;
+                    }
+
+                    // 檢查每個條件是否都有關鍵字
+                    const emptyConditions = searchConditions.filter(condition => 
+                        !condition.keywords || condition.keywords.length === 0
+                    );
+            
+                    if (emptyConditions.length > 0) {
+                        this.showError('請確保每個搜索條件都包含關鍵字');
+                        return;
+                    }
+            
+                    // 獲取必要的參數
+                    const description = this.elements.techDescription.value.trim();
+                    const gpssApiKey = this.elements.gpssApiKey.value.trim();
+            
+                    // 確保有session_id
+                    if (!this.currentSessionId) {
+                        this.currentSessionId = this.generateSessionId();
+                    }
+            
+                    // 驗證必要參數
+                    if (!description) {
+                        this.showError('請先輸入技術描述');
+                        return;
+                    }
+            
+                    if (!gpssApiKey) {
+                        this.showError('請先輸入GPSS API驗證碼');
+                        return;
+                    }
+            
+                    // 轉換搜索條件為API所需的格式
+                    const allKeywords = [];
+                    searchConditions.forEach(condition => {
+                        if (condition.keywords && condition.keywords.length > 0) {
+                            allKeywords.push(...condition.keywords);
+                        }
+                    });
+            
+                    // 去重並驗證
+                    const uniqueKeywords = [...new Set(allKeywords)].filter(kw => kw && kw.trim());
+                    
+                    if (uniqueKeywords.length === 0) {
+                        this.showError('沒有有效的關鍵字可用於搜索');
+                        return;
+                    }
+            
+                    // 🔧 修正：準備正確的API請求數據格式（符合後端 KeywordConfirmationRequest 模型）
+                    const requestData = {
+                        session_id: this.currentSessionId,
+                        description: description,
+                        generated_keywords: this.extractGeneratedKeywords(), // 🆕 必需字段
+                        selected_keywords: uniqueKeywords,                   // 使用收集到的關鍵字
+                        custom_keywords: [],                                 // 手動搜索不使用自定義關鍵字
+                        user_code: gpssApiKey,
+                        max_results: 1000,
+                        use_and_or_logic: false                             // 使用傳統邏輯
+                    };
+            
+                    console.log('🎯 手動搜索請求數據:', JSON.stringify(requestData, null, 2));
+            
+                    // 設置loading狀態
+                    this.isSearching = true;
+                    this.elements.loadingTech.classList.add('show');
+                    this.elements.keywordSelection.style.display = 'none';
+                    this.elements.techSearchResults.style.display = 'none';
+            
+                    // 顯示進度
+                    this.updateProgress(0.3, '執行手動配置檢索...');
+                    this.startProgressAnimation('progress-fill', 'progress-text', 45000);
+
+                    // 調用正確的API端點
+                    const response = await fetch(`${this.apiBaseUrl}/api/v1/patents/search/tech-description-confirmed`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+            
+                    console.log('🔍 API響應狀態:', response.status);
+            
+                    if (!response.ok) {
+                        // 獲取詳細錯誤信息
+                        let errorDetail = '未知錯誤';
+                        try {
+                            const errorData = await response.json();
+                            console.error('🔍 API錯誤詳情:', errorData);
+                            errorDetail = errorData.detail || errorData.message || `HTTP ${response.status}`;
+                        } catch (e) {
+                            errorDetail = `HTTP ${response.status}: ${response.statusText}`;
+                        }
+                        throw new Error(errorDetail);
+                    }
+            
+                    const data = await response.json();
+                    console.log('🔍 手動搜索響應:', data);
+
+                    if (data.success) {
+                        // 完成進度
+                        this.completeProgress('progress-fill', 'progress-text');
+                        
+                        // 處理搜索結果
+                        this.completeTechSearch(data);
+            
+                        // 顯示搜索邏輯
+                        this.displayManualSearchLogic(searchConditions);
+            
+                        // 啟用聊天功能
+                        if (!this.chatEnabled) {
+                            this.enableChat();
+                        }
+            
+                        this.showSuccess(`手動搜索完成！找到 ${data.total_found || 0} 筆專利`);
+            
+                    } else {
+                        throw new Error(data.detail || data.message || data.error || '檢索失敗');
+                    }
+
+                } catch (error) {
+                    console.error('手動檢索錯誤:', error);
+                    this.showError(`檢索失敗: ${this.extractErrorMessage(error)}`);
+                } finally {
+                    // 重置狀態
+                    this.isSearching = false;
+                    this.elements.loadingTech.classList.remove('show');
+                    this.resetProgress('progress-fill', 'progress-text');
+                }
+            }
+
+            extractGeneratedKeywords() {
+                // 從當前生成的關鍵字中提取主關鍵字
+                if (this.generatedKeywords && Array.isArray(this.generatedKeywords)) {
+                    return this.generatedKeywords.map(group => group.keyword || '').filter(kw => kw);
+                }
+    
+                // 如果沒有生成的關鍵字，返回空數組（這對於手動搜索是可以接受的）
+                return [];
+            }
+
+            // 🔧 修正：改進的 collectKeywordSynonymSelections 函數
+            collectKeywordSynonymSelections() {
+                const searchConditions = [];
+                const conditionRows = document.querySelectorAll('.condition-row');
+
+                console.log(`🔍 找到 ${conditionRows.length} 個條件行`);
+
+                conditionRows.forEach((row, index) => {
+                    const droppedKeywords = row.querySelectorAll('.dropped-keyword');
+                    const fieldSelector = row.querySelector('.field-selector');
+                    const logicSelector = row.querySelector('.logic-selector');
+
+                    console.log(`🔍 第 ${index + 1} 行有 ${droppedKeywords.length} 個關鍵字`);
+
+                    if (droppedKeywords.length > 0) {
+                        const keywords = Array.from(droppedKeywords)
+                            .map(keyword => {
+                                // 移除 × 符號並清理空白
+                                const text = keyword.textContent.replace('×', '').trim();
+                                console.log(`🔍 提取關鍵字: "${text}"`);
+                                return text;
+                            })
+                            .filter(kw => kw && kw.length > 0); // 過濾空字串
+
+                        if (keywords.length > 0) {
+                            searchConditions.push({
+                                keywords: keywords,
+                                field: fieldSelector ? fieldSelector.value : 'AB',
+                                logic: logicSelector ? logicSelector.value : 'AND',
+                                condition_index: index
+                            });
+                        }
+                    }
+                });
+
+                console.log('🔍 收集到的搜索條件:', JSON.stringify(searchConditions, null, 2));
+                return searchConditions;
+            }
+
+            displayManualSearchLogic(searchConditions) {
+                const logicParts = [];
+
+                searchConditions.forEach((condition, index) => {
+                    const keywords = condition.keywords || [];
+                    const field = condition.field || 'AB';
+                    const logic = condition.logic || 'AND';
+
+                    if (keywords.length > 0) {
+                        const keywordPart = keywords.length > 1 ? 
+                            `(${keywords.join(' OR ')})` : keywords[0];
+
+                        const fieldName = field === 'TI' ? '專利名稱' : 
+                                         field === 'AB' ? '摘要' : '專利範圍';
+
+                        logicParts.push(`${fieldName}: ${keywordPart}`);
+                    }
+                });
+
+                const finalLogic = logicParts.join(' AND ');
+
+                // 顯示在界面上
+                const searchLogicDiv = document.createElement('div');
+                searchLogicDiv.className = 'search-logic-display';
+                searchLogicDiv.innerHTML = `
+                    <h4>手動配置的搜索邏輯：</h4>
+                    <code style="background: #f5f5f5; padding: 0.5rem; display: block; margin: 0.5rem 0; border-radius: 4px;">
+                        ${finalLogic}
+                    </code>
+                    <p style="color: #666; font-size: 0.9rem; margin-top: 0.5rem;">
+                        ✨ 系統將使用上述關鍵字在GPSS資料庫中進行檢索
+                    </p>
+                `;
+
+                // 插入到結果顯示區域
+                const resultsDiv = this.elements.keywordsResult;
+                if (resultsDiv) {
+                    // 清除之前的搜索邏輯顯示
+                    const existingLogic = resultsDiv.querySelector('.search-logic-display');
+                    if (existingLogic) {
+                        existingLogic.remove();
+                    }
+
+                    resultsDiv.appendChild(searchLogicDiv);
+                    resultsDiv.style.display = 'block';
+                }
+            }
+
+            createConditionRow(conditionIndex) {
+                const newRow = document.createElement('div');
+                newRow.className = 'condition-row';
+                newRow.dataset.conditionIndex = conditionIndex;
+    
+                newRow.innerHTML = `
+                    <div class="keywords-dropzone" data-condition="${conditionIndex}">
+                        <span class="dropzone-hint">拖拉關鍵字到這裡</span>
+                        <div class="dropped-keywords"></div>
+                    </div>
+                    <select class="field-selector">
+                        <option value="TI">專利名稱</option>
+                        <option value="AB">摘要</option>
+                        <option value="CL">專利範圍</option>
+                    </select>
+                    <select class="logic-selector">
+                        <option value="AND">AND</option>
+                        <option value="OR">OR</option>
+                    </select>
+                    <button class="add-condition-btn-inline">+</button>
+                `;
+    
+                return newRow;
+            }
+
+            bindEvents() {
+                // 分頁切換
+                this.elements.tabContainer.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('tab')) {
+                        this.showTab(e.target.dataset.tab);
+                    }
+                });
+
+                // API測試
+                this.elements.testApiBtn.addEventListener('click', () => this.testApiConnection());
+                this.elements.testGpssBtn.addEventListener('click', () => this.testGpssConnection());
+
+                // 專利查詢
+                this.elements.patentLookupBtn.addEventListener('click', () => this.lookupPatent());
+                this.elements.patentLookupInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.lookupPatent();
+                });
+
+                // 新的關鍵字流程 - 修正部分
+                document.getElementById('clear-all-conditions-btn').addEventListener('click', () => {
+                    this.clearAllConditions();
+                });
+
+                document.getElementById('auto-generate-conditions-btn').addEventListener('click', () => {
+                    this.autoGenerateConditions();
+                });
+
+                // 修改：為內聯+按鈕綁定事件（使用事件委託）
+                document.getElementById('manual-search-btn').addEventListener('click', () => {
+                    this.manualSearch();
+                });
+
+                // 關鍵字生成和搜索
+                this.elements.generateKeywordsBtn.addEventListener('click', () => this.generateKeywords());
+                this.elements.confirmSynonymSearchBtn.addEventListener('click', () => this.confirmSynonymSearch());
+                this.elements.cancelKeywordBtn.addEventListener('click', () => this.cancelKeywordSelection());
+
+                // 條件搜索
+                this.elements.startConditionSearchBtn.addEventListener('click', () => this.startConditionSearch());
+
+                // Excel匯出
+                this.elements.exportExcelBtn.addEventListener('click', () => this.exportToExcel('tech'));
+                this.elements.exportConditionExcelBtn.addEventListener('click', () => this.exportToExcel('condition'));
+
+                // Excel分析相關事件
+                this.elements.selectFileBtn.addEventListener('click', () => this.elements.excelFileInput.click());
+                this.elements.excelFileInput.addEventListener('change', (e) => this.handleFileSelect(e));
+                this.elements.analyzeExcelBtn.addEventListener('click', () => this.analyzeExcel());
+                this.elements.clearFileBtn.addEventListener('click', () => this.clearFile());
+                this.elements.exportAnalysisBtn.addEventListener('click', () => this.exportAnalysisResults());
+
+                // 拖放事件
+                this.elements.uploadArea.addEventListener('dragover', (e) => this.handleDragOver(e));
+                this.elements.uploadArea.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+                this.elements.uploadArea.addEventListener('drop', (e) => this.handleDrop(e));
+
+                // 聊天相關事件
+                this.elements.chatToggleBtn.addEventListener('click', () => this.toggleChat());
+                this.elements.chatCloseBtn.addEventListener('click', () => this.closeChat());
+                this.elements.chatSendBtn.addEventListener('click', () => this.sendChatMessage());
+                this.elements.chatInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendChatMessage();
+                    }
+                });
+            }       
+
+            // 🆕 初始化增強版聊天功能
+            initEnhancedChat() {
+                console.log('初始化增強版聊天功能（支持對話記憶）');
+                
+                // 綁定新的聊天事件
+                if (this.elements.memoryToggleBtn) {
+                    this.elements.memoryToggleBtn.addEventListener('click', () => this.toggleMemoryMode());
+                }
+                
+                if (this.elements.chatHistoryBtn) {
+                    this.elements.chatHistoryBtn.addEventListener('click', () => this.showChatHistory());
+                }
+                
+                if (this.elements.clearMemoryBtn) {
+                    this.elements.clearMemoryBtn.addEventListener('click', () => this.clearChatMemory());
+                }
+                
+                if (this.elements.useMemoryCheckbox) {
+                    this.elements.useMemoryCheckbox.addEventListener('change', (e) => {
+                        this.memoryEnabled = e.target.checked;
+                        this.updateMemoryIndicator();
+                    });
+                }
+                
+                // 初始化記憶狀態
+                this.updateMemoryIndicator();
+            }
+
+            // 聊天相關方法
+            initChat() {
+                console.log('聊天系統已初始化');
+            }
+
+            toggleChat() {
+                const isOpen = this.elements.chatPanel.classList.contains('open');
+                if (isOpen) {
+                    this.closeChat();
+                } else {
+                    this.openChat();
+                }
+            }
+
+            openChat() {
+                this.elements.chatPanel.classList.add('open');
+                this.elements.mainContent.classList.add('chat-open');
+                this.elements.chatToggleBtn.style.display = 'none';
+                
+                // 如果有檢索結果且聊天未啟用，啟用聊天
+                if (!this.chatEnabled && this.hasAnyResults()) {
+                    this.enableChat();
+                }
+            }
+
+            closeChat() {
+                this.elements.chatPanel.classList.remove('open');
+                this.elements.mainContent.classList.remove('chat-open');
+                this.elements.chatToggleBtn.style.display = 'flex';
+            }
+
+            hasAnyResults() {
+                return this.searchResults.tech || this.searchResults.condition || this.searchResults.excel;
+            }
+
+            enableChat() {
+                this.chatEnabled = true;
+                this.elements.chatInput.disabled = false;
+                this.elements.chatSendBtn.disabled = false;
+                this.elements.chatStatus.textContent = '已就緒，可以開始問答！';
+                this.elements.chatStatus.style.background = '#d4edda';
+                this.elements.chatStatus.style.color = '#155724';
+                
+                // 更新聊天數據
+                this.updateChatResults();
+                
+                // 🆕 更新記憶狀態
+                this.updateMemoryStatus();
+                
+                console.log('聊天功能已啟用（支持對話記憶）');
+            }
+
+            updateChatResults() {
+                // 合併所有檢索結果
+                this.chatResults = {
+                    tech: this.searchResults.tech,
+                    condition: this.searchResults.condition,
+                    excel: this.searchResults.excel,
+                    lastUpdated: new Date().toISOString()
+                };
+                
+                console.log('聊天數據已更新:', this.chatResults);
+            }
+
+            // 🆕 更新發送聊天消息方法
+            async sendChatMessage() {
+                const message = this.elements.chatInput.value.trim();
+                if (!message || !this.chatEnabled) return;
+
+                // 添加用戶消息
+                this.addChatMessage('user', message, this.memoryEnabled);
+                this.elements.chatInput.value = '';
+                
+                // 顯示輸入中
+                this.showTyping();
+                
+                try {
+                    const response = await this.callEnhancedQwenAPI(message, this.memoryEnabled);
+                    this.hideTyping();
+                    this.addChatMessage('assistant', response.answer, this.memoryEnabled, response);
+                    
+                    // 🆕 更新記憶狀態
+                    await this.updateMemoryStatus();
+                    
+                } catch (error) {
+                    this.hideTyping();
+                    this.addChatMessage('assistant', '抱歉，回答時發生錯誤：' + error.message, false);
+                    console.error('聊天API錯誤:', error);
+                }
+            }
+
+            // 🆕 調用增強版QWEN API
+            async callEnhancedQwenAPI(userMessage, useMemory = true) {
+                const endpoint = useMemory ? '/api/v1/patents/qa/ask-with-memory' : '/api/v1/patents/qa/ask-simple';
+                
+                const payload = {
+                    session_id: this.currentSessionId || 'default',
+                    question: userMessage,
+                    use_memory: useMemory
+                };
+
+                const response = await fetch(`${this.apiBaseUrl}${endpoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API請求失敗: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    return data;
+                } else {
+                    throw new Error(data.error || 'API回應錯誤');
+                }
+            }
+
+            // 🆕 添加聊天消息（增強版）
+            addChatMessage(type, content, memoryMode, metadata = null) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `chat-message ${type} ${memoryMode ? 'memory-enabled' : 'memory-disabled'}`;
+                
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+                
+                let metaInfo = '';
+                if (metadata && type === 'assistant') {
+                    const contextInfo = metadata.context_info || {};
+                    metaInfo = `
+                        <div class="message-meta">
+                            記憶模式: ${contextInfo.memory_enabled ? '開啟' : '關閉'} | 
+                            使用歷史: ${contextInfo.conversation_history_used || 0} 輪 | 
+                            執行時間: ${(metadata.execution_time || 0).toFixed(2)}s
+                        </div>
+                    `;
+                }
+                
+                messageDiv.innerHTML = `
+                    <div class="message-content">${this.escapeHtml(content)}</div>
+                    <div class="message-time">${timeStr}</div>
+                    ${metaInfo}
+                `;
+                
+                this.elements.chatMessages.appendChild(messageDiv);
+                this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
+                
+                // 保存到聊天歷史
+                this.chatHistory.push({
+                    type: type,
+                    content: content,
+                    memoryMode: memoryMode,
+                    timestamp: now.toISOString(),
+                    metadata: metadata
+                });
+            }
+
+            // 🆕 切換記憶模式
+            toggleMemoryMode() {
+                this.memoryEnabled = !this.memoryEnabled;
+                this.elements.useMemoryCheckbox.checked = this.memoryEnabled;
+                this.updateMemoryIndicator();
+                
+                this.addChatMessage('system', 
+                    `對話記憶已${this.memoryEnabled ? '開啟' : '關閉'}。` +
+                    `${this.memoryEnabled ? 'AI將記住我們之前的對話內容。' : 'AI將不會記住之前的對話。'}`, 
+                    false
+                );
+            }
+
+            // 🆕 更新記憶指示器
+            updateMemoryIndicator() {
+                if (!this.elements.memoryIndicator) return;
+                
+                const indicator = this.elements.memoryIndicator;
+                const icon = this.elements.memoryIcon;
+                const status = this.elements.memoryStatus;
+                
+                if (this.memoryEnabled) {
+                    indicator.className = 'memory-indicator active';
+                    indicator.style.display = 'flex';
+                    icon.textContent = '🧠';
+                    status.textContent = '記憶模式';
+                } else {
+                    indicator.className = 'memory-indicator inactive';
+                    indicator.style.display = 'flex';
+                    icon.textContent = '❌';
+                    status.textContent = '簡單模式';
+                }
+            }
+
+            // 🆕 更新記憶狀態
+            async updateMemoryStatus() {
+                if (!this.currentSessionId) return;
+                
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/api/v1/patents/qa/memory-status/${this.currentSessionId}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success) {
+                            this.memoryStatus = data.memory_status;
+                            this.updateMemoryStatusDisplay();
+                        }
+                    }
+                } catch (error) {
+                    console.error('更新記憶狀態失敗:', error);
+                }
+            }
+
+            // 🆕 更新記憶狀態顯示
+            updateMemoryStatusDisplay() {
+                if (!this.elements.memoryStats) return;
+                
+                const status = this.memoryStatus;
+                const statsText = `記憶快取: ${status.memory_count || 0} 輪 | ` +
+                                 `歷史記錄: ${status.has_db_history ? '有' : '無'} | ` +
+                                 `檢索結果: ${status.has_search_cache ? '可用' : '無'}`;
+                
+                this.elements.memoryStats.textContent = statsText;
+                
+                // 顯示/隱藏狀態面板
+                if (this.elements.memoryStatusPanel) {
+                    this.elements.memoryStatusPanel.style.display = 
+                        (status.memory_count > 0 || status.has_db_history) ? 'block' : 'none';
+                }
+            }
+
+            // 🆕 顯示對話歷史
+            async showChatHistory() {
+                if (!this.currentSessionId) {
+                    alert('沒有當前會話ID');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/api/v1/patents/qa/history/${this.currentSessionId}?limit=20`);
+                    const data = await response.json();
+                    
+                    if (data.success && data.history.length > 0) {
+                        let historyHtml = '<div class="modal-body" style="max-height: 60vh; overflow-y: auto; padding: 1rem;">';
+                        
+                        data.history.forEach((item, index) => {
+                            const time = new Date(item.created_at).toLocaleString('zh-TW');
+                            historyHtml += `
+                                <div class="history-item">
+                                    <div class="history-time">${time}</div>
+                                    <div class="history-question">問: ${item.question}</div>
+                                    <div class="history-answer">答: ${item.answer.substring(0, 200)}${item.answer.length > 200 ? '...' : ''}</div>
+                                </div>
+                            `;
+                        });
+                        
+                        historyHtml += '</div>';
+                        
+                        // 創建對話歷史模態框
+                        this.showModal('對話歷史', historyHtml);
+                    } else {
+                        alert('暫無對話歷史');
+                    }
+                } catch (error) {
+                    console.error('獲取對話歷史失敗:', error);
+                    alert('獲取對話歷史失敗');
+                }
+            }
+
+            // 🆕 清除聊天記憶
+            async clearChatMemory() {
+                if (!this.currentSessionId) {
+                    alert('沒有當前會話ID');
+                    return;
+                }
+                
+                if (!confirm('確定要清除對話記憶嗎？這將清除AI對之前對話的記憶，但不會刪除歷史記錄。')) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/api/v1/patents/qa/clear-memory`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            session_id: this.currentSessionId
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.addChatMessage('system', '對話記憶已清除。AI將不再記住之前的對話內容。', false);
+                        await this.updateMemoryStatus();
+                    } else {
+                        alert('清除記憶失敗');
+                    }
+                } catch (error) {
+                    console.error('清除記憶失敗:', error);
+                    alert('清除記憶失敗');
+                }
+            }
+
+            // 🆕 顯示模態框
+            showModal(title, content) {
+                // 創建模態框
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                
+                const modalContent = document.createElement('div');
+                modalContent.className = 'modal-content';
+                
+                modalContent.innerHTML = `
+                    <div class="modal-header">
+                        <h3>${title}</h3>
+                        <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+                    </div>
+                    ${content}
+                `;
+                
+                modal.appendChild(modalContent);
+                document.body.appendChild(modal);
+                
+                // 點擊外部關閉
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.remove();
+                    }
+                });
+            }
+
+            showTyping() {
+                this.elements.chatTyping.classList.add('show');
+                this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
+            }
+
+            hideTyping() {
+                this.elements.chatTyping.classList.remove('show');
+            }
+
+            // 進度條相關方法
+            startProgressAnimation(progressElementId, textElementId, duration = 30000) {
+                const progressElement = document.getElementById(progressElementId);
+                const textElement = document.getElementById(textElementId);
+                
+                if (!progressElement || !textElement) return;
+                
+                // 清除之前的動畫
+                if (this.progressIntervals[progressElementId]) {
+                    clearInterval(this.progressIntervals[progressElementId]);
+                }
+                
+                let progress = 0;
+                const increment = 100 / (duration / 1000); // 每秒增加的百分比
+                
+                this.progressIntervals[progressElementId] = setInterval(() => {
+                    progress += increment;
+                    
+                    // 限制最大進度為 90%，避免到達 100%
+                    if (progress > 90) {
+                        progress = 90;
+                    }
+                    
+                    progressElement.style.width = progress + '%';
+                    textElement.textContent = Math.round(progress) + '%';
+                }, 1000);
+            }
+
+            completeProgress(progressElementId, textElementId) {
+                // 清除動畫
+                if (this.progressIntervals[progressElementId]) {
+                    clearInterval(this.progressIntervals[progressElementId]);
+                    delete this.progressIntervals[progressElementId];
+                }
+                
+                const progressElement = document.getElementById(progressElementId);
+                const textElement = document.getElementById(textElementId);
+                
+                if (progressElement && textElement) {
+                    progressElement.style.width = '100%';
+                    textElement.textContent = '100%';
+                }
+            }
+
+            resetProgress(progressElementId, textElementId) {
+                if (this.progressIntervals[progressElementId]) {
+                    clearInterval(this.progressIntervals[progressElementId]);
+                    delete this.progressIntervals[progressElementId];
+                }
+                
+                const progressElement = document.getElementById(progressElementId);
+                const textElement = document.getElementById(textElementId);
+                
+                if (progressElement && textElement) {
+                    progressElement.style.width = '0%';
+                    textElement.textContent = '0%';
+                }
+            }
+
+            showWelcomeMessage() {
+                this.showSuccess('智能專利檢索系統已啟動！請先輸入GPSS API驗證碼');
+                console.log('系統已啟動，等待API驗證...');
+            }
+
+            async testApiConnection() {
+                try {
+                    console.log(`嘗試連接API: ${this.apiBaseUrl}`);
+                    this.updateStatus('apiStatus', 'testing', '測試中...');
+                    
+                    const response = await fetch(`${this.apiBaseUrl}/ping`, {
+                        method: 'GET',
+                        headers: { 'Accept': 'application/json' }
+                    });
+
+                    console.log(`API回應狀態: ${response.status}`);
+
+                    if (response.ok) {
+                        this.updateStatus('apiStatus', 'success', 'API 連接正常');
+                        await this.testPatentAPI();
+                        this.showSuccess('API連接測試成功！');
+                    } else {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                } catch (error) {
+                    console.error('API連接測試失敗:', error);
+                    this.updateStatus('apiStatus', 'error', 'API 連接失敗');
+                    this.updateStatus('qwenStatus', 'error', '服務異常');
+                    this.showError(`API連接失敗: ${this.extractErrorMessage(error)}`);
+                }
+            }
+
+            async testPatentAPI() {
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/api/v1/patents/test/ping`);
+                    if (response.ok) {
+                        this.updateStatus('qwenStatus', 'success', 'Qwen 服務正常');
+                        console.log('專利API測試成功');
+                    } else {
+                        console.warn(`專利API測試失敗: HTTP ${response.status}`);
+                        this.updateStatus('qwenStatus', 'warning', 'Qwen 服務需檢查');
+                    }
+                } catch (error) {
+                    console.error('專利API測試錯誤:', error);
+                    this.updateStatus('qwenStatus', 'warning', 'Qwen 服務需檢查');
+                }
+            }
+
+            async testGpssConnection() {
+                try {
+                    const apiKey = this.elements.gpssApiKey.value.trim();
+                    
+                    if (!apiKey) {
+                        this.showError('請先輸入GPSS API驗證碼');
+                        return;
+                    }
+
+                    if (apiKey.length < 16) {
+                        this.showError('GPSS API驗證碼格式不正確（應為16位以上）');
+                        return;
+                    }
+
+                    console.log(`測試GPSS API: ${apiKey.substring(0, 8)}...`);
+                    this.updateStatus('gpssStatus', 'testing', 'GPSS 測試中...');
+
+                    const response = await fetch(`${this.apiBaseUrl}/api/v1/patents/test/gpss`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_code: apiKey })
+                    });
+
+                    console.log(`GPSS API回應狀態: ${response.status}`);
+                    const data = await response.json();
+                    console.log('GPSS API回應數據:', data);
+
+                    if (response.ok && data.success) {
+                        this.updateStatus('gpssStatus', 'success', 'GPSS API 已驗證');
+                        this.showSuccess('GPSS API連接測試成功！');
+                        this.apiKeyVerified = true;
+                        localStorage.setItem('gpss_api_key', apiKey);
+                    } else {
+                        this.updateStatus('gpssStatus', 'error', 'GPSS API 驗證失敗');
+                        this.showError(`GPSS API驗證失敗: ${data.detail || data.message || '未知錯誤'}`);
+                        this.apiKeyVerified = false;
+                    }
+                } catch (error) {
+                    console.error('GPSS API測試錯誤:', error);
+                    this.updateStatus('gpssStatus', 'error', 'GPSS API 連接失敗');
+                    this.showError(`GPSS API連接失敗: ${this.extractErrorMessage(error)}`);
+                    this.apiKeyVerified = false;
+                }
+            }
+
+            lookupPatent() {
+                const patentNumber = this.elements.patentLookupInput.value.trim();
+                if (!patentNumber) {
+                    this.showError('請輸入公開公告號');
+                    return;
+                }
+                
+                const url = `https://tiponet.tipo.gov.tw/gpss4/gpsskmc/gpssbkm?!!FRURL${patentNumber}`;
+                window.open(url, '_blank');
+            }
+
+            async generateKeywords() {
+                if (!this.validateApiKey()) return;
+
+                if (this.isSearching) {
+                    this.showError('正在進行處理，請稍候...');
+                    return;
+                }
+
+                try {
+                    const description = this.elements.techDescription.value.trim();
+                    if (!description) {
+                        this.showError('請先輸入技術描述');
+                        return;
+                    }
+
+                    if (description.length < 50) {
+                        this.showError('技術描述太短，請提供更詳細的描述（至少50個字）');
+                        return;
+                    }
+
+                    this.isSearching = true;
+                    this.elements.generateKeywordsBtn.disabled = true;
+                    this.elements.keywordSelection.style.display = 'none';
+                    this.updateProgress(0.1, '正在生成關鍵字...');
+                    this.elements.loadingTech.classList.add('show');
+
+                    this.startProgressAnimation('progress-fill', 'progress-text', 10000);
+
+                    const response = await fetch(`${this.apiBaseUrl}/api/v1/patents/keywords/generate-for-confirmation`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            description: description,
+                            session_id: this.currentSessionId
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (response.ok && data.success) {
+                        this.currentSessionId = data.session_id;
+                        this.generatedKeywords = data.generated_keywords;
+                        
+                        this.completeProgress('progress-fill', 'progress-text');
+                        this.showKeywordSelection(data);
+                    } else {
+                        throw new Error(data.detail || data.message || '關鍵字生成失敗');
+                    }
+
+                } catch (error) {
+                    console.error('關鍵字生成錯誤:', error);
+                    this.showError(`關鍵字生成失敗: ${this.extractErrorMessage(error)}`);
+                } finally {
+                    this.isSearching = false;
+                    this.elements.generateKeywordsBtn.disabled = false;
+                    this.elements.loadingTech.classList.remove('show');
+                    this.resetProgress('progress-fill', 'progress-text');
+                }
+            }
+
+            showKeywordSelection(data) {
+                this.generatedKeywords = data.keywords_with_synonyms || [];
+                // 清空之前的內容
+                const availableKeywords = document.getElementById('available-keywords');
+                availableKeywords.innerHTML = '';
+
+                // 生成可拖拉的關鍵字和同義詞
+                const keywordsWithSynonyms = data.keywords_with_synonyms || [];
+
+                keywordsWithSynonyms.forEach((group, groupIndex) => {
+                    const keyword = group.keyword || '';
+                    const synonyms = group.synonyms || [];
+
+                    // 創建主關鍵字
+                    if (keyword) {
+                        const keywordDiv = document.createElement('div');
+                        keywordDiv.className = 'keyword-item';
+                        keywordDiv.textContent = keyword;
+                        keywordDiv.draggable = true;
+                        keywordDiv.dataset.keyword = keyword;
+                        keywordDiv.dataset.type = 'keyword';
+                        this.addDragEvents(keywordDiv);
+                        availableKeywords.appendChild(keywordDiv);
+                    }
+
+                        // 創建同義詞
+                        synonyms.forEach(synonym => {
+                        const synonymDiv = document.createElement('div');
+                        synonymDiv.className = 'synonym-item';
+                        synonymDiv.textContent = synonym;
+                        synonymDiv.draggable = true;
+                        synonymDiv.dataset.keyword = synonym;
+                        synonymDiv.dataset.type = 'synonym';
+                        this.addDragEvents(synonymDiv);
+                        availableKeywords.appendChild(synonymDiv);
+                    });
+                });
+
+                // 初始化拖放區域
+                this.initializeDropZones();
+    
+                // 顯示關鍵字選擇界面
+                this.elements.keywordSelection.style.display = 'block';
+                this.showSuccess(`成功生成 ${keywordsWithSynonyms.length} 個關鍵字組及其同義詞，請拖拉到搜索條件中`);
+            }
+
+            addDragEvents(element) {
+                element.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', e.target.dataset.keyword);
+                    e.dataTransfer.setData('type', e.target.dataset.type);
+                });
+            }
+
+            initializeDropZones() {
+                const dropZones = document.querySelectorAll('.keywords-dropzone');
+                dropZones.forEach(zone => {
+                    zone.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        zone.classList.add('dragover');
+                    });
+
+                    zone.addEventListener('dragleave', () => {
+                        zone.classList.remove('dragover');
+                    });
+
+                    zone.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        zone.classList.remove('dragover');
+
+                        const keyword = e.dataTransfer.getData('text/plain');
+                        const type = e.dataTransfer.getData('type');
+
+                        this.addKeywordToDropZone(zone, keyword, type);
+                    });
+                });
+            }
+
+            addKeywordToDropZone(zone, keyword, type) {
+                const droppedKeywords = zone.querySelector('.dropped-keywords');
+                const hint = zone.querySelector('.dropzone-hint');
+
+                // 隱藏提示文字
+                if (hint) hint.style.display = 'none';
+
+                // 檢查是否已存在
+                    const existingKeywords = Array.from(droppedKeywords.children)
+                        .map(child => child.textContent.replace('×', '').trim());
+
+                    if (existingKeywords.includes(keyword)) {
+                        return; // 已存在，不重複添加
+                }
+
+                // 創建dropped keyword元素
+                const keywordSpan = document.createElement('span');
+                keywordSpan.className = 'dropped-keyword';
+                keywordSpan.innerHTML = `${keyword} <span class="remove-btn">×</span>`;
+    
+                // 添加移除功能
+                keywordSpan.querySelector('.remove-btn').addEventListener('click', () => {
+                    keywordSpan.remove();
+                    if (droppedKeywords.children.length === 0 && hint) {
+                        hint.style.display = 'block';
+                    }
+                });
+    
+                droppedKeywords.appendChild(keywordSpan);
+            }
+
+            collectKeywordSynonymSelections() {
+                const searchConditions = [];
+                const conditionRows = document.querySelectorAll('.condition-row');
+
+                conditionRows.forEach((row, index) => {
+                    const droppedKeywords = row.querySelectorAll('.dropped-keyword');
+                    const fieldSelector = row.querySelector('.field-selector');
+                    const logicSelector = row.querySelector('.logic-selector');
+
+                    if (droppedKeywords.length > 0) {
+                        const keywords = Array.from(droppedKeywords)
+                            .map(keyword => keyword.textContent.replace('×', '').trim());
+
+                        searchConditions.push({
+                            keywords: keywords,
+                            field: fieldSelector.value,
+                            logic: logicSelector.value,
+                            condition_index: index
+                        });
+                    }
+                });
+
+                return searchConditions;
+            }
+
+
+
+            async confirmAndSearch() {
+                if (this.isSearching) {
+                    this.showError('正在進行搜尋，請稍候...');
+                    return;
+                }
+
+                try {
+                    // 收集選擇的關鍵字和同義詞
+                    const selectedKeywordGroups = this.collectKeywordSynonymSelections();
+
+                    // 收集自定義關鍵字
+                    const customKeywordsText = this.elements.customKeywords.value.trim();
+                    const customKeywords = customKeywordsText ? 
+                        customKeywordsText.split(',').map(k => k.trim()).filter(k => k) : [];
+
+                    // 檢查是否有選擇
+                    if (selectedKeywordGroups.length === 0 && customKeywords.length === 0) {
+                        this.showError('請至少選擇一個關鍵字組合或輸入自定義關鍵字');
+                        return;
+                    }
+
+                    const description = this.elements.techDescription.value.trim();
+                    const gpssApiKey = this.elements.gpssApiKey.value.trim();
+
+                    this.isSearching = true;
+                    this.elements.confirmSynonymSearchBtn.disabled = true;
+                    this.elements.keywordSelection.style.display = 'none';
+                    this.elements.loadingTech.classList.add('show');
+                    this.elements.techSearchResults.style.display = 'none';
+
+                    this.updateProgress(0.3, '執行關鍵字同義詞檢索...');
+                    this.startProgressAnimation('progress-fill', 'progress-text', 45000);
+
+                    const response = await fetch(`${this.apiBaseUrl}/api/v1/patents/search/tech-description-with-synonyms`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            session_id: this.currentSessionId,
+                            description: description,
+                            selected_keyword_groups: selectedKeywordGroups,
+                            custom_keywords: customKeywords,
+                            user_code: gpssApiKey,
+                            max_results: 1000
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        this.completeProgress('progress-fill', 'progress-text');
+                        this.completeTechSearch(data);
+
+                        // 顯示使用的搜索邏輯
+                        this.displaySearchLogic(selectedKeywordGroups, customKeywords);
+
+                        // 啟用聊天功能
+                        if (!this.chatEnabled) {
+                            this.enableChat();
+                        }
+                    } else {
+                        throw new Error(data.detail || data.message || '檢索失敗');
+                    }
+
+                } catch (error) {
+                    console.error('關鍵字同義詞搜索錯誤:', error);
+                    this.showError(`搜索失敗: ${this.extractErrorMessage(error)}`);
+                } finally {
+                    this.isSearching = false;
+                    this.elements.confirmSynonymSearchBtn.disabled = false;
+                    this.elements.loadingTech.classList.remove('show');
+                    this.resetProgress('progress-fill', 'progress-text');
+                }
+            }
+
+            displaySearchLogic(selectedKeywordGroups, customKeywords) {
+                const logicParts = [];
+
+                // 處理關鍵字組
+                selectedKeywordGroups.forEach((group, index) => {
+                    const terms = [];
+                if (group.keyword_selected) {
+                        terms.push(group.keyword);
+                    }
+                    terms.push(...group.selected_synonyms);
+
+                    if (terms.length > 0) {
+                        logicParts.push(`(${terms.join(' OR ')})`);
+                    }
+                });
+
+                // 處理自定義關鍵字
+                if (customKeywords.length > 0) {
+                    logicParts.push(`(${customKeywords.join(' OR ')})`);
+                }
+
+                const finalLogic = logicParts.join(' AND ');
+
+                // 顯示在界面上
+                const searchLogicDiv = document.createElement('div');
+                searchLogicDiv.className = 'search-logic-display';
+                searchLogicDiv.innerHTML = `
+                    <h4>使用的搜索邏輯：</h4>
+                    <code style="background: #f5f5f5; padding: 0.5rem; display: block; margin: 0.5rem 0; border-radius: 4px;">
+                        ${finalLogic}
+                    </code>
+                `;
+
+                // 插入到結果顯示區域
+                const resultsDiv = this.elements.keywordsResult;
+                resultsDiv.appendChild(searchLogicDiv);
+            }
+
+            async confirmSynonymSearch() {
+                if (this.isSearching) {
+                    this.showError('正在進行搜尋，請稍候...');
+                    return;
+                }
+
+                try {
+                    // 收集選擇的關鍵字和同義詞組合
+                    const selectedKeywordGroups = this.collectKeywordSynonymSelections();
+
+                    // 收集自定義關鍵字
+                    const customKeywordsText = this.elements.customKeywords.value.trim();
+                    const customKeywords = customKeywordsText ? 
+                        customKeywordsText.split(',').map(k => k.trim()).filter(k => k) : [];
+
+                    // 檢查是否有選擇
+                    if (selectedKeywordGroups.length === 0 && customKeywords.length === 0) {
+                        this.showError('請至少選擇一個關鍵字組合或輸入自定義關鍵字');
+                        return;
+                    }
+
+                    const description = this.elements.techDescription.value.trim();
+                    const gpssApiKey = this.elements.gpssApiKey.value.trim();
+
+                    this.isSearching = true;
+                    this.elements.confirmSynonymSearchBtn.disabled = true;
+                    this.elements.keywordSelection.style.display = 'none';
+                    this.elements.loadingTech.classList.add('show');
+                    this.elements.techSearchResults.style.display = 'none';
+
+                    this.updateProgress(0.3, '執行關鍵字同義詞檢索...');
+                    this.startProgressAnimation('progress-fill', 'progress-text', 45000);
+
+                    const response = await fetch(`${this.apiBaseUrl}/api/v1/patents/search/tech-description-with-synonyms`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            session_id: this.currentSessionId,
+                            description: description,
+                            selected_keyword_groups: selectedKeywordGroups,
+                            custom_keywords: customKeywords,
+                            user_code: gpssApiKey,
+                            max_results: 1000
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        this.completeProgress('progress-fill', 'progress-text');
+                        this.completeTechSearch(data);
+
+                        // 啟用聊天功能
+                        if (!this.chatEnabled) {
+                            this.enableChat();
+                        }
+                    } else {
+                        throw new Error(data.detail || data.message || '檢索失敗');
+                    }
+
+                } catch (error) {
+                    console.error('關鍵字同義詞搜索錯誤:', error);
+                    this.showError(`搜索失敗: ${this.extractErrorMessage(error)}`);
+                } finally {
+                    this.isSearching = false;
+                    this.elements.confirmSynonymSearchBtn.disabled = false;
+                    this.elements.loadingTech.classList.remove('show');
+                    this.resetProgress('progress-fill', 'progress-text');
+                }
+            }
+
+
+            
+
+            cancelKeywordSelection() {
+                this.elements.keywordSelection.style.display = 'none';
+                this.currentSessionId = null;
+                this.generatedKeywords = [];
+            }
+
+            displayFinalKeywords(keywords) {
+                this.elements.finalKeywords.innerHTML = 
+                    keywords.map(kw => `<span class="keyword-tag">${kw}</span>`).join('');
+                this.elements.keywordsResult.style.display = 'block';
+            }
+
+            async startConditionSearch() {
+                if (!this.validateApiKey()) return;
+                
+                if (this.isSearching) {
+                    this.showError('正在進行搜尋，請稍候...');   
+                    return;
+                }
+
+                try {
+                    // 🔧 確保有session_id，但不要每次都重新生成
+                    if (!this.currentSessionId) {
+                        this.currentSessionId = this.generateSessionId();
+                    }
+
+                    const searchParams = this.buildConditionSearchParams();
+
+                    console.log('🔍 條件搜尋使用的 session_id:', this.currentSessionId); // 🔧 Debug日誌
+
+                    if (!this.hasValidConditions(searchParams)) {
+                        this.showError('請至少輸入一個搜索條件');
+                        return;
+                    }
+
+                    this.isSearching = true;
+                    this.elements.startConditionSearchBtn.disabled = true;
+                    this.elements.loadingCondition.classList.add('show');
+                    this.elements.conditionSearchResults.style.display = 'none';
+
+                    this.updateConditionProgress(0.3, '執行條件檢索...');
+                    this.startProgressAnimation('progress-fill-condition', 'progress-text-condition', 30000);
+
+                    const searchResults = await this.performConditionSearch(searchParams);
+
+                    this.completeProgress('progress-fill-condition', 'progress-text-condition');
+                    this.completeConditionSearch(searchResults);
+
+                    // 🆕 檢查是否成功暫存結果
+                    if (searchResults.query_info?.cached_for_qa) {
+                        this.showSuccess(`條件搜尋完成！找到 ${searchResults.total_found} 筆專利，已啟用智能問答功能`);
+                        console.log('✅ 搜尋結果已暫存，session_id:', this.currentSessionId); // 🔧 Debug日誌
+                    } else {
+                        this.showSuccess(`條件搜尋完成！找到 ${searchResults.total_found} 筆專利`);
+                        console.warn('⚠️ 搜尋結果未暫存'); // 🔧 Debug日誌
+                    }
+
+                    // 啟用聊天功能
+                    if (!this.chatEnabled) {
+                        this.enableChat();
+                    }
+
+                } catch (error) {
+                    console.error('條件搜索錯誤:', error);
+                    this.showError(`條件查詢失敗: ${this.extractErrorMessage(error)}`);
+                } finally {
+                    this.isSearching = false;
+                    this.elements.startConditionSearchBtn.disabled = false;
+                    this.elements.loadingCondition.classList.remove('show');
+                    this.resetProgress('progress-fill-condition', 'progress-text-condition');
+                }
+            }
+
+            buildConditionSearchParams() {
+                const params = {
+                    user_code: this.elements.gpssApiKey.value.trim(),
+                    max_results: 1000,
+                    session_id: this.currentSessionId, // 🔧 使用當前session_id
+                    applicant: this.elements.applicant.value.trim(),
+                    inventor: this.elements.inventor.value.trim(),
+                    patent_number: this.elements.patentNumber.value.trim(),
+                    application_number: this.elements.applicationNumber.value.trim(),
+                    ipc_class: this.elements.ipcClass.value.trim(),
+                    title_keyword: this.elements.titleKeyword.value.trim(),
+                    abstract_keyword: this.elements.abstractKeyword.value.trim(),
+                    claims_keyword: this.elements.claimsKeyword.value.trim(),
+                    application_date_from: this.elements.applicationDateFrom.value,
+                    application_date_to: this.elements.applicationDateTo.value,
+                    publication_date_from: this.elements.publicationDateFrom.value,
+                    publication_date_to: this.elements.publicationDateTo.value
+                };
+        
+                console.log('📤 發送條件搜尋參數:', params); // 🔧 Debug日誌
+                return params;
+            }
+
+            hasValidConditions(params) {
+                return Object.entries(params)
+                    .filter(([key]) => key !== 'user_code' && key !== 'max_results')
+                    .some(([key, value]) => value && value.length > 0);
+            }
+
+            async performConditionSearch(searchParams) {
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/api/v1/patents/condition/search`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(searchParams)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => null);
+                        const errorMessage = errorData?.detail || errorData?.message || `HTTP ${response.status}: ${response.statusText}`;
+                        throw new Error(errorMessage);
+                    }
+
+                    const data = await response.json();
+                    
+                    return {
+                        patents: data.results || [],
+                        total: data.total_found || 0,
+                        message: data.message || '條件搜索完成'
+                    };
+                    
+                } catch (error) {
+                    console.error('條件查詢API調用錯誤:', error);
+                    throw new Error(`條件查詢API調用失敗: ${this.extractErrorMessage(error)}`);
+                }
+            }
+
+            validateApiKey() {
+                const apiKey = this.elements.gpssApiKey.value.trim();
+                if (!apiKey) {
+                    this.showError('請先輸入GPSS API驗證碼並完成驗證');
+                    return false;
+                }
+                if (!this.apiKeyVerified) {
+                    this.showError('請先完成GPSS API驗證');
+                    return false;
+                }
+                return true;
+            }
+
+            completeTechSearch(searchResults) {
+                this.searchResults.tech = searchResults.search_results || searchResults.results || [];
+                this.displayTechSearchResults();
+                this.showSuccess(`技術搜尋完成！找到 ${searchResults.total_found} 筆專利`);
+            }
+
+            completeConditionSearch(searchResults) {
+                this.searchResults.tech = searchResults.search_results || searchResults.results || [];  // ✅ 修復
+                this.displayTechSearchResults();
+                this.showSuccess(`技術搜尋完成！找到 ${searchResults.total_found} 筆專利`);
+
+            }
+
+            displayTechSearchResults() {
+                const results = this.searchResults.tech;
+                if (!results || !results.length) {
+                    this.elements.techPatentList.innerHTML = '<div class="no-results">沒有找到相關的專利</div>';
+                    this.elements.exportExcelBtn.style.display = 'none';
+                } else {
+                    this.elements.techPatentList.innerHTML = this.generatePatentListHtml(results);
+                    this.elements.exportExcelBtn.style.display = 'inline-block';
+                }
+                this.elements.techSearchResults.style.display = 'block';
+            }
+
+            displayConditionSearchResults() {
+                const results = this.searchResults.condition;
+                if (!results || !results.length) {
+                    this.elements.conditionPatentList.innerHTML = '<div class="no-results">沒有找到相關的專利</div>';
+                    this.elements.exportConditionExcelBtn.style.display = 'none';
+                } else {
+                    this.elements.conditionPatentList.innerHTML = this.generatePatentListHtml(results);
+                    this.elements.exportConditionExcelBtn.style.display = 'inline-block';
+                }
+                this.elements.conditionSearchResults.style.display = 'block';
+            }
+
+            generatePatentListHtml(patents) {
+                return patents.map((patent, index) => {
+                    // 處理專利名稱和連結
+                    const title = patent['專利名稱'] || patent.title || 'N/A';
+                    const patentLink = patent['專利連結'] || patent.patent_link || '';
+                    const publicationNumber = patent['公開公告號'] || patent.publication_number || 'N/A';
+
+                    // 如果有專利連結，建立超連結；如果沒有，嘗試用公開公告號生成連結
+                    let titleWithLink = title;
+                    if (patentLink) {
+                        titleWithLink = `<a href="${patentLink}" target="_blank" rel="noopener" style="color: #5a5859; text-decoration: none;">${this.escapeHtml(title)}</a>`;
+                    } else if (publicationNumber && publicationNumber !== 'N/A') {
+                        const autoGeneratedLink = `https://tiponet.tipo.gov.tw/gpss4/gpsskmc/gpssbkm?!!FRURL${publicationNumber}`;
+                        titleWithLink = `<a href="${autoGeneratedLink}" target="_blank" rel="noopener" style="color: #5a5859; text-decoration: none;">${this.escapeHtml(title)}</a>`;
+                    } else {
+                        titleWithLink = this.escapeHtml(title);
+                    }
+
+                    // 處理申請人 - 修正顯示問題
+                    let applicants = patent['申請人'] || patent.applicants || 'N/A';
+                    if (Array.isArray(applicants)) {
+                        applicants = applicants.join('; ');
+                    }
+                    if (!applicants || applicants === 'N/A' || applicants.trim() === '') {
+                        applicants = '申請人資訊待查';
+                    }
+
+                    // 處理國家 - 修正顯示問題，增加國家標識
+                    let country = patent['國家'] || patent.country || 'TW';
+                    const countryFlag = this.getCountryFlag(country);
+                    const countryDisplay = `${countryFlag} ${this.getCountryName(country)}`;
+
+                    // 處理摘要
+                    const abstract = patent['摘要'] || patent.abstract || '';
+                    const abstractHtml = abstract && abstract !== 'N/A' && abstract !== '暫無摘要資訊' ? 
+                        `<div class="patent-abstract">
+                            <h4>● 專利摘要</h4>
+                            <p>${this.escapeHtml(abstract)}</p>
+                         </div>` : '';
+
+                    // 處理技術特徵和功效
+                    const features = patent['技術特徵'] || patent.technical_features || [];
+                    const effects = patent['技術功效'] || patent.technical_effects || [];
+                         
+                    const featuresHtml = Array.isArray(features) ? 
+                        features.map(f => `<li>${this.escapeHtml(f)}</li>`).join('') :
+                        `<li>${this.escapeHtml(features)}</li>`;
+
+                    const effectsHtml = Array.isArray(effects) ? 
+                        effects.map(e => `<li>${this.escapeHtml(e)}</li>`).join('') :
+                        `<li>${this.escapeHtml(effects)}</li>`;
+
+                    return `
+                        <div class="patent-card">
+                            <div class="patent-title">${index + 1}. ${titleWithLink}</div>
+                            
+                            <div class="patent-metadata">
+                                <div class="metadata-item">
+                                    <span class="metadata-label">公告號:</span>
+                                    <span class="metadata-value">${publicationNumber}</span>
+                                </div>
+                                <div class="metadata-item">
+                                    <span class="metadata-label">申請人:</span>
+                                    <span class="metadata-value">${this.escapeHtml(applicants)}</span>
+                                </div>
+
+                            </div>
+                            
+                            ${abstractHtml}
+                            
+                            <div class="features-effects">
+                                <div style="margin-bottom: 1rem;">
+                                    <h4>■ 技術特徵</h4>
+                                    <ul class="features-list">${featuresHtml}</ul>
+                                </div>
+                                <div style="margin-bottom: 1rem;">
+                                    <h4>▲ 技術功效</h4>
+                                    <ul class="effects-list">${effectsHtml}</ul>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // 國家相關方法
+            getCountryFlag(country) {
+                const flagMap = {
+                    'TW': ':',
+                    'US': ':', 
+                    'JP': ':',
+                    'EP': ':',
+                    'KR': ':',
+                    'CN': ':',
+                    'WO': ':',
+                    'SEA': ':',
+                };
+                return flagMap[country] || 'N/A' ;
+            }
+
+            getCountryName(country) {
+                const nameMap = {
+                    'TW': 'TW',
+                    'US': 'US',
+                    'JP': 'JP',
+                    'EP': 'EP',
+                    'KR': 'KR',
+                    'CN': 'CN',
+                    'WO': 'WO',
+                    'SEA': 'SEA',
+                };
+                return nameMap[country] || country;
+            }
+
+            // Excel相關方法
+            handleDragOver(e) {
+                e.preventDefault();
+                this.elements.uploadArea.classList.add('dragover');
+            }
+
+            handleDragLeave(e) {
+                e.preventDefault();
+                this.elements.uploadArea.classList.remove('dragover');
+            }
+
+            handleDrop(e) {
+                e.preventDefault();
+                this.elements.uploadArea.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (this.validateExcelFile(file)) {
+                        this.setSelectedFile(file);
+                    }
+                }
+            }
+
+            handleFileSelect(e) {
+                const file = e.target.files[0];
+                if (file && this.validateExcelFile(file)) {
+                    this.setSelectedFile(file);
+                }
+            }
+
+            validateExcelFile(file) {
+                // 檢查檔案類型
+                const validTypes = [
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+                    'application/vnd.ms-excel' // .xls
+                ];
+                
+                const validExtensions = ['.xlsx', '.xls'];
+                const fileName = file.name.toLowerCase();
+                const hasValidExtension = validExtensions.some(ext => fileName.endsWith(ext));
+                
+                if (!validTypes.includes(file.type) && !hasValidExtension) {
+                    this.showError('請選擇有效的Excel檔案(.xlsx 或 .xls)');
+                    return false;
+                }
+
+                // 檢查檔案大小 (10MB)
+                if (file.size > 10 * 1024 * 1024) {
+                    this.showError('檔案大小不能超過10MB');
+                    return false;
+                }
+
+                return true;
+            }
+
+            setSelectedFile(file) {
+                this.selectedFile = file;
+                
+                // 顯示檔案資訊
+                const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                this.elements.fileInfo.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span>📄</span>
+                        <strong>${file.name}</strong>
+                        <span>(${fileSizeMB} MB)</span>
+                    </div>
+                `;
+                this.elements.fileInfo.style.display = 'block';
+                
+                // 顯示分析按鈕
+                this.elements.analyzeExcelBtn.style.display = 'inline-block';
+                this.elements.analyzeExcelBtn.disabled = false;
+                this.elements.clearFileBtn.style.display = 'inline-block';
+                
+                this.showSuccess('Excel檔案已選擇，點擊"開始分析"進行處理');
+            }
+
+            clearFile() {
+                this.selectedFile = null;
+                this.elements.excelFileInput.value = '';
+                this.elements.fileInfo.style.display = 'none';
+                this.elements.analyzeExcelBtn.style.display = 'none';
+                this.elements.clearFileBtn.style.display = 'none';
+                this.elements.excelAnalysisResults.style.display = 'none';
+                this.elements.analysisSummary.style.display = 'none';
+                this.currentAnalysisResults = null;
+            }
+
+            async analyzeExcel() {
+                if (!this.selectedFile) {
+                    this.showError('請先選擇Excel檔案');
+                    return;
+                }
+
+                if (this.isSearching) {
+                    this.showError('系統正在處理其他請求，請稍候...');
+                    return;
+                }
+
+                try {
+                    this.isSearching = true;
+                    this.elements.analyzeExcelBtn.disabled = true;
+                    this.elements.loadingExcel.classList.add('show');
+                    this.updateExcelProgress(0.1, '正在上傳Excel檔案...');
+                    this.startProgressAnimation('progress-fill-excel', 'progress-text-excel', 60000);
+
+                    // 準備FormData
+                    const formData = new FormData();
+                    formData.append('file', this.selectedFile);
+
+                    // 上傳並分析
+                    const response = await fetch(`${this.apiBaseUrl}/api/v1/patents/excel/upload-and-analyze`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => null);
+                        throw new Error(errorData?.detail || `HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.completeProgress('progress-fill-excel', 'progress-text-excel');
+                        this.completeExcelAnalysis(data);
+
+                        // 啟用聊天功能
+                        if (!this.chatEnabled) {
+                            this.enableChat();
+                        }
+                    } else {
+                        throw new Error(data.message || '分析失敗');
+                    }
+
+                } catch (error) {
+                    console.error('Excel分析錯誤:', error);
+                    this.showError(`Excel分析失敗: ${this.extractErrorMessage(error)}`);
+                } finally {
+                    this.isSearching = false;
+                    this.elements.analyzeExcelBtn.disabled = false;
+                    this.elements.loadingExcel.classList.remove('show');
+                    this.resetProgress('progress-fill-excel', 'progress-text-excel');
+                }
+            }
+
+            completeExcelAnalysis(data) {
+                this.searchResults.excel = data.results;
+                this.currentAnalysisResults = data;
+                
+                // 顯示摘要統計
+                this.displayAnalysisSummary(data);
+                
+                // 顯示分析結果
+                this.displayExcelAnalysisResults(data);
+                
+                this.showSuccess(`Excel分析完成！成功處理 ${data.processed_count} 筆專利，失敗 ${data.errors.length} 筆`);
+            }
+
+            displayAnalysisSummary(data) {
+                const totalCount = data.total_count || 0;
+                const successCount = data.processed_count || 0;
+                const failedCount = data.errors.length || 0;
+                
+                // 分析方法統計
+                let primaryMethod = 'QWEN';
+                if (data.results && data.results.length > 0) {
+                    const methodCount = {};
+                    data.results.forEach(result => {
+                        const method = result['分析方法'] || 'unknown';
+                        methodCount[method] = (methodCount[method] || 0) + 1;
+                    });
+                    
+                    // 找出最常用的分析方法
+                    primaryMethod = Object.keys(methodCount).reduce((a, b) => 
+                        methodCount[a] > methodCount[b] ? a : b, 'QWEN');
+                    
+                    // 格式化方法名稱
+                    if (primaryMethod === 'qwen_api') primaryMethod = 'Qwen AI';
+                    else if (primaryMethod === 'fallback') primaryMethod = 'Fallback';
+                    else primaryMethod = 'QWEN';
+                }
+
+                this.elements.totalPatentsProcessed.textContent = totalCount;
+                this.elements.successfulAnalysis.textContent = successCount;
+                this.elements.failedAnalysis.textContent = failedCount;
+                this.elements.analysisMethod.textContent = primaryMethod;
+                
+                this.elements.analysisSummary.style.display = 'block';
+            }
+
+            displayExcelAnalysisResults(data) {
+                if (!data.results || data.results.length === 0) {
+                    this.elements.excelPatentList.innerHTML = '<div class="no-results">沒有成功分析的專利資料</div>';
+                    this.elements.exportAnalysisBtn.style.display = 'none';
+                } else {
+                    this.elements.excelPatentList.innerHTML = this.generateExcelAnalysisHtml(data.results);
+                    this.elements.exportAnalysisBtn.style.display = 'inline-block';
+                }
+                
+                this.elements.excelAnalysisResults.style.display = 'block';
+            }
+
+            generateExcelAnalysisHtml(results) {
+                return results.map((result, index) => {
+                    const features = result['技術特徵'] || [];
+                    const effects = result['技術功效'] || [];
+                    
+                    const featuresHtml = Array.isArray(features) ? 
+                        features.map(f => `<li>${this.escapeHtml(f)}</li>`).join('') :
+                        `<li>無技術特徵資料</li>`;
+
+                    const effectsHtml = Array.isArray(effects) ? 
+                        effects.map(e => `<li>${this.escapeHtml(e)}</li>`).join('') :
+                        `<li>無技術功效資料</li>`;
+
+                    return `
+                        <div class="patent-card">
+                            <div class="patent-title">
+                                ${result['序號']}. ${this.escapeHtml(result['專利名稱'] || 'N/A')}
+                            </div>
+                            
+                            <div class="patent-metadata">
+                                <div class="metadata-item">
+                                    <span class="metadata-label">公告號:</span>
+                                    <span class="metadata-value">${this.escapeHtml(result['公開公告號'] || 'N/A')}</span>
+                                </div>
+                                <div class="metadata-item">
+                                    <span class="metadata-label">原始行號:</span>
+                                    <span class="metadata-value">${result['原始行號'] || 'N/A'}</span>
+                                </div>
+                                <div class="metadata-item">
+                                    <span class="metadata-label">分析方法:</span>
+                                    <span class="metadata-value">${this.escapeHtml(result['分析方法'] || 'QWEN')}</span>
+                                </div>
+                            </div>
+
+                            <div class="patent-abstract">
+                                <h4>● 專利摘要</h4>
+                                <p>${this.escapeHtml(result['摘要'] || '無摘要資料')}</p>
+                            </div>
+
+                            <div class="features-effects">
+                                <div style="margin-bottom: 1rem;">
+                                    <h4>■ 技術特徵</h4>
+                                    <ul class="features-list">${featuresHtml}</ul>
+                                </div>
+                                <div style="margin-bottom: 1rem;">
+                                    <h4>▲ 技術功效</h4>
+                                    <ul class="effects-list">${effectsHtml}</ul>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            async exportAnalysisResults() {
+                if (!this.currentAnalysisResults) {
+                    this.showError('沒有可匯出的分析結果');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/api/v1/patents/excel/export-analysis-results`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            results: this.currentAnalysisResults.results,
+                            session_id: this.currentAnalysisResults.session_id
+                        })
+                    });
+
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = response.headers.get('Content-Disposition')?.split('filename=')[1] || 'excel_analysis_results.xlsx';
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                        
+                        this.showSuccess('Excel分析結果已下載！');
+                    } else {
+                        throw new Error('匯出失敗');
+                    }
+                } catch (error) {
+                    console.error('匯出分析結果錯誤:', error);
+                    this.showError(`匯出失敗: ${this.extractErrorMessage(error)}`);
+                }
+            }
+
+            async exportToExcel(type) {
+                try {
+                    const results = this.searchResults[type];
+                    if (!results || !results.length) {
+                        this.showError('沒有可匯出的資料');
+                        return;
+                    }
+
+                    // 準備匯出數據
+                    const exportData = results.map((patent, index) => {
+                        return {
+                            'No.': index + 1,
+                            '專利名稱': this.safeStringValue(patent['專利名稱'] || patent.title),
+                            '專利連結': this.safeStringValue(patent['專利連結'] || patent.patent_link || 
+                                (patent['公開公告號'] || patent.publication_number ? 
+                                `https://tiponet.tipo.gov.tw/gpss4/gpsskmc/gpssbkm?!!FRURL${patent['公開公告號'] || patent.publication_number}` : '')),
+                            '公開公告號': this.safeStringValue(patent['公開公告號'] || patent.publication_number),
+                            '申請人': this.safeStringValue(patent['申請人'] || patent.applicants),
+                            '國家': this.safeStringValue(patent['國家'] || patent.country),
+                            '摘要': this.safeTruncateText(patent['摘要'] || patent.abstract, 500),
+                            '專利範圍': this.safeTruncateText(patent['專利範圍'] || patent.claims, 500),
+                            '技術特徵': this.formatArrayField(patent['技術特徵'] || patent.technical_features || []),
+                            '技術功效': this.formatArrayField(patent['技術功效'] || patent.technical_effects || [])
+                        };
+                    });
+
+                    // 創建Excel文件
+                    const ws = XLSX.utils.json_to_sheet(exportData);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "專利檢索結果");
+
+                    // 設置列寬
+                    const colWidths = [
+                        { wch: 5 },   // No.
+                        { wch: 30 },  // 專利名稱
+                        { wch: 50 },  // 專利連結
+                        { wch: 15 },  // 公開公告號
+                        { wch: 20 },  // 申請人
+                        { wch: 8 },   // 國家
+                        { wch: 50 },  // 摘要
+                        { wch: 50 },  // 專利範圍
+                        { wch: 30 },  // 技術特徵
+                        { wch: 30 }   // 技術功效
+                    ];
+                    ws['!cols'] = colWidths;
+
+                    // 下載文件
+                    const fileName = `專利檢索結果_${type}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+                    XLSX.writeFile(wb, fileName);
+
+                    this.showSuccess('Excel文件已下載！');
+
+                } catch (error) {
+                    console.error('Excel匯出錯誤:', error);
+                    this.showError(`Excel匯出失敗: ${this.extractErrorMessage(error)}`);
+                }
+            }
+
+            updateExcelProgress(percent, message) {
+                this.elements.progressFillExcel.style.width = (percent * 100) + '%';
+                this.elements.loadingTextExcel.textContent = message;
+            }
+
+            formatArrayField(arr) {
+                if (!Array.isArray(arr)) return arr || '';
+                return arr.join('; ');
+            }
+
+            safeStringValue(value) {
+                if (value === null || value === undefined) return 'N/A';
+                if (typeof value === 'string') return value || 'N/A';
+                if (Array.isArray(value)) return value.join('; ') || 'N/A';
+                return String(value) || 'N/A';
+            }
+
+            safeTruncateText(value, maxLength) {
+                const str = this.safeStringValue(value);
+                if (str === 'N/A') return str;
+                if (str.length <= maxLength) return str;
+                return str.substring(0, maxLength - 3) + '...';
+            }
+
+            updateProgress(percent, message) {
+                this.elements.progressFill.style.width = (percent * 100) + '%';
+                this.elements.loadingText.textContent = message;
+            }
+
+            updateConditionProgress(percent, message) {
+                const progressFill = document.getElementById('progress-fill-condition');
+                const loadingText = document.getElementById('loading-text-condition');
+                if (progressFill) progressFill.style.width = (percent * 100) + '%';
+                if (loadingText) loadingText.textContent = message;
+            }
+
+            updateStatus(elementId, status, message) {
+                const element = this.elements[elementId];
+                if (!element) return;
+
+                element.className = `status-indicator status-${status}`;
+                const icons = { 
+                    success: '√', 
+                    error: 'X', 
+                    warning: '⚠', 
+                    testing: '⇲' 
+                };
+                const icon = icons[status] || '?';
+                element.innerHTML = `<span>${icon}</span> ${message}`;
+            }
+
+            showTab(tabId) {
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                
+                document.querySelectorAll('.tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                
+                const targetTab = document.getElementById(tabId);
+                if (targetTab) {
+                    targetTab.classList.add('active');
+                }
+                
+                const activeTabBtn = document.querySelector(`[data-tab="${tabId}"]`);
+                if (activeTabBtn) {
+                    activeTabBtn.classList.add('active');
+                }
+                
+                this.currentTab = tabId;
+            }
+
+            extractErrorMessage(error) {
+                // 處理各種錯誤格式
+                if (typeof error === 'string') {
+                    return error;
+                }
+                
+                if (error instanceof Error) {
+                    return error.message;
+                }
+                
+                if (error && typeof error === 'object') {
+                    // 嘗試提取常見的錯誤字段
+                    if (error.detail) {
+                        return typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail);
+                    }
+                    if (error.message) {
+                        return error.message;
+                    }
+                    if (error.error) {
+                        return typeof error.error === 'string' ? error.error : JSON.stringify(error.error);
+                    }
+                    // 如果是Response對象
+                    if (error.status && error.statusText) {
+                        return `HTTP ${error.status}: ${error.statusText}`;
+                    }
+                    // 最後嘗試JSON.stringify
+                    try {
+                        return JSON.stringify(error);
+                    } catch (e) {
+                        return '未知錯誤';
+                    }
+                }
+                
+                return '未知錯誤類型';
+            }
+
+            escapeHtml(text) {
+                if (!text) return 'N/A';
+                if (typeof text !== 'string') return String(text);
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            showError(message) {
+                this.showMessage(message, 'error');
+            }
+
+            showSuccess(message) {
+                this.showMessage(message, 'success');
+            }
+
+            showMessage(message, type) {
+                const existing = document.querySelector('.temp-message');
+                if (existing) existing.remove();
+
+                const div = document.createElement('div');
+                div.className = `${type}-message temp-message`;
+                const icon = type === 'error' ? 'X' : '√';
+                div.innerHTML = `<strong>${icon} ${type === 'error' ? '錯誤' : '成功'}：</strong> ${message}`;
+                
+                const header = document.querySelector('.header');
+                header.after(div);
+                
+                setTimeout(() => {
+                    if (div.parentNode) div.parentNode.removeChild(div);
+                }, 5000);
+            }
+        
+            async sendQuestionToAPI(userMessage, useMemory) {
+                const endpoint = useMemory ? 
+                    '/api/v1/patents/qa/ask-with-memory' : '/api/v1/patents/qa/ask-simple';
+        
+                const payload = {
+                    session_id: this.currentSessionId, // 🔧 使用當前session_id，不要用 'default'
+                    question: userMessage,
+                    use_memory: useMemory
+                };
+
+                console.log('💬 發送問答請求:', payload); // 🔧 Debug日誌
+
+                const response = await fetch(`${this.apiBaseUrl}${endpoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API請求失敗: ${response.status}`);
+                }
+
+                const data = await response.json();
+        
+                if (data.success) {
+                    return data;
+                } else {
+                    throw new Error(data.error || 'API回應錯誤');
+                }
+            }
+
+            // 🆕 新增：Debug方法 - 顯示當前session信息
+            showSessionInfo() {
+                console.log('🔍 當前Session信息:');
+                console.log('Session ID:', this.currentSessionId);
+                console.log('聊天啟用:', this.chatEnabled);
+                console.log('記憶模式:', this.memoryEnabled);
+
+                // 在畫面上也顯示session_id（用於debug）
+                const sessionDiv = document.getElementById('session-debug');
+                if (sessionDiv) {
+                    sessionDiv.textContent = `Session ID: ${this.currentSessionId}`;
+                }
+            }
+        }
+
+        // 啟動應用
+        document.addEventListener('DOMContentLoaded', function() {
+            const app = new ImprovedPatentSearchApp();
+            window.patentSearchApp = app;
+            console.log('改進版專利檢索系統已啟動 v2.0 - 新增智能問答功能');
+        });
+    </script>
+</body>
+</html>
